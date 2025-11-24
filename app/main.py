@@ -1,0 +1,38 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Any, Dict
+
+
+from app.routers.resume_router import router as resume_router
+
+app = FastAPI(
+    title="My FastAPI Service",
+    version="1.0.0"
+)
+
+# 1) Simple GET endpoint
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI 🚀"}
+
+# 2) Path & query params
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: str | None = None):
+    return {"item_id": item_id, "query": q}
+
+# 3) Request body with Pydantic
+class Item(BaseModel):
+    name: str
+    price: float
+    in_stock: bool = True
+
+@app.post("/items")
+def create_item(item: Item):
+    # In real app, save to DB here
+    return {
+        "message": "Item created",
+        "item": item,
+    }
+
+# ✅ Register your resume router here
+app.include_router(resume_router)
