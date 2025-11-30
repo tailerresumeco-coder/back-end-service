@@ -33,7 +33,7 @@ async def tailer_resume(resume_content_json, jd_text):
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e)} 
 
     print('End resume_service.py -> tailer_resume()', db_response)
     return "Resume uploaded successfully"
