@@ -1,9 +1,10 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any, Dict
 from fastapi.middleware.cors import CORSMiddleware
-
-
 from app.routers.resume_router import router as resume_router
 
 app = FastAPI(
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 1) Simple GET endpoint
 @app.get("/")
@@ -47,7 +49,6 @@ def create_item(item: Item):
         "item": item,
     }
 
-# ✅ Register your resume router here
 app.include_router(resume_router)
 
 

@@ -1,10 +1,17 @@
 from typing import Any, Dict
 from app.db import resumes_collection
 from openai import OpenAI
-from app.config import HF_API_KEY, HF_ENDPOINT
+# from app.config import HF_API_KEY, HF_ENDPOINT
 from app.utils.prompts import PROMPT_1, PROMPT_2, PROMPT_3, PROMPT_4, PROMPT_5, PROMPT_6
 import json
 import re
+import os
+
+HF_API_KEY = os.getenv("HF_API_KEY")
+HF_ENDPOINT = os.getenv("HF_ENDPOINT")
+
+if not HF_API_KEY or not HF_ENDPOINT:
+    raise RuntimeError("Missing environment variables")
 
 client = OpenAI(
     base_url = HF_ENDPOINT,
