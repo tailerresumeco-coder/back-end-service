@@ -15,7 +15,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "https://tailer-resume.netlify.app/"
     ],  # React dev server
     allow_credentials=True,
     allow_methods=["*"],
@@ -48,3 +49,7 @@ def create_item(item: Item):
 
 # ✅ Register your resume router here
 app.include_router(resume_router)
+
+
+# pip install -r requirements.txt
+# python -m uvicorn app.main:app --reload
