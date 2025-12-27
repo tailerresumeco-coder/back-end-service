@@ -3,3 +3,4 @@ fastapi
 motor
 openai
 dotenv
+gunicorn
