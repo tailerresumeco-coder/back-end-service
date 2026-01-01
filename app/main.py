@@ -13,11 +13,11 @@ app = FastAPI(
 )
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware, 
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://tailer-resume.netlify.app"
+        "https://tailer-resume.netlify.app" 
     ],  # React dev server
     allow_credentials=True,
     allow_methods=["*"],
