@@ -2,9 +2,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Any, Dict
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from app.routers.resume_router import router as resume_router
 
 app = FastAPI(
@@ -12,28 +11,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# ✅ CORRECT CORS CONFIG (Netlify → Render)
 app.add_middleware(
-    CORSMiddleware, 
+    CORSMiddleware,
     allow_origins=[
-        '*'
-    ],  # React dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+        "https://tailer-resume.netlify.app"
+    ],
+    allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
+# ─────────────────────────────────────────────
 
-# 1) Simple GET endpoint
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI 🚀"}
 
-# 2) Path & query params
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str | None = None):
     return {"item_id": item_id, "query": q}
 
-# 3) Request body with Pydantic
 class Item(BaseModel):
     name: str
     price: float
@@ -41,14 +39,10 @@ class Item(BaseModel):
 
 @app.post("/items")
 def create_item(item: Item):
-    # In real app, save to DB here
     return {
         "message": "Item created",
         "item": item,
     }
 
+# Include routers LAST
 app.include_router(resume_router)
-
-
-# pip install -r requirements.txt
-# python -m uvicorn app.main:app --reload
