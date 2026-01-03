@@ -1,6 +1,7 @@
 from typing import Any, Dict
 from app.db import resumes_collection
 from openai import OpenAI
+from app.utils.prompts import PROMPT_7
 from app.utils.prompts import PROMPT_5
 import json
 import re
@@ -25,8 +26,11 @@ def get_openai_client():
 def extract_json(text):
     match = re.search(r"\{[\s\S]*\}", text)
     if not match:
-        raise ValueError("No JSON found in model response")
-    return json.loads(match.group())
+        return text  # Return the text as is if no JSON found
+    try:
+        return json.loads(match.group())
+    except json.JSONDecodeError:
+        return text  # Return the text as is if JSON is invalid
 
 async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
@@ -34,7 +38,7 @@ async def upload_resume(payload: Dict[str, Any]):
 
 async def tailer_resume(resume_content, jd_text):
     try:
-        prompt = PROMPT_5
+        prompt = PROMPT_7
         prompt = prompt.replace("{{RESUME_TEXT}}", resume_content)
         prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
 

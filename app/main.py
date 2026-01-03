@@ -15,7 +15,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://tailer-resume.netlify.app"
+        "https://tailer-resume.netlify.app",
+        "http://localhost:5173"
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "OPTIONS"],
