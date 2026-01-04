@@ -1,8 +1,7 @@
 from typing import Any, Dict
 from app.db import resumes_collection
 from openai import OpenAI
-from app.utils.prompts import PROMPT_7
-from app.utils.prompts import PROMPT_5
+from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9
 import json
 import re
 import os
@@ -38,7 +37,7 @@ async def upload_resume(payload: Dict[str, Any]):
 
 async def tailer_resume(resume_content, jd_text):
     try:
-        prompt = PROMPT_7
+        prompt = PROMPT_9
         prompt = prompt.replace("{{RESUME_TEXT}}", resume_content)
         prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
 
