@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service
+from app.models.tailer_resume_request import TailerResumeRequestModel
 
 router = APIRouter(
     prefix="/resume",
@@ -32,4 +33,4 @@ async def keep_a_live():
         return "Server is Running..."
     except:
         raise HTTPException(status_code=500, detail=str(e))
-  
+    return response

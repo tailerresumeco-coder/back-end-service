@@ -1,2 +1,6 @@
-RUNNING_CMD = python -m uvicorn app.main:app --reload
-
+uvicorn
+fastapi
+motor
+openai
+dotenv
+gunicorn

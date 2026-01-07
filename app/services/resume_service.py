@@ -1,23 +1,48 @@
 from typing import Any, Dict
 from app.db import resumes_collection
 from openai import OpenAI
-from app.config import HF_API_KEY, HF_ENDPOINT
+from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9
+import json
+import re
+import os
+from fastapi import HTTPException
 
-client = OpenAI(
-    base_url = HF_ENDPOINT,
-    api_key = HF_API_KEY,
-)
+def get_openai_client():
+    api_key = os.getenv("HF_API_KEY")
+    endpoint = os.getenv("HF_ENDPOINT")
+
+    if not api_key or not endpoint:
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: missing HF credentials"
+        )
+
+    return OpenAI(
+        base_url=endpoint,
+        api_key=api_key,
+    )
+
+def extract_json(text):
+    match = re.search(r"\{[\s\S]*\}", text)
+    if not match:
+        return text  # Return the text as is if no JSON found
+    try:
+        return json.loads(match.group())
+    except json.JSONDecodeError:
+        return text  # Return the text as is if JSON is invalid
 
 async def upload_resume(payload: Dict[str, Any]):
-    print('Begin resume_service.py -> upload_resume()', payload)
     db_response = await resumes_collection.insert_one(payload)
-    print('End resume_service.py -> upload_resume()', db_response)
     return "Resume uploaded successfully"
 
-async def tailer_resume(resume_content_json, jd_text):
-    print('Begin resume_service.py -> tailer_resume()')
-    
+async def tailer_resume(resume_content, jd_text):
     try:
+        prompt = PROMPT_9
+        prompt = prompt.replace("{{RESUME_TEXT}}", resume_content)
+        prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
+
+        client = get_openai_client()
+
         completion = client.chat.completions.create(
             model="deepseek-ai/DeepSeek-V3.2-Exp:novita",
             messages=[
@@ -29,11 +54,8 @@ async def tailer_resume(resume_content_json, jd_text):
 
         return {
             "prompt": prompt,
-            "response": answer
+            "response": extract_json(answer)
         }
 
     except Exception as e:
-        return {"error": str(e)} 
-
-    print('End resume_service.py -> tailer_resume()', db_response)
-    return "Resume uploaded successfully"
+        raise HTTPException(status_code=500, detail=str(e))
