@@ -26,3 +26,11 @@ async def upload_resume(payload: TailerResumeRequestModel):
     response = await tailer_resume_service(payload.resume, payload.jd)
     print('End resume_router.py -> upload_resume()')
     return response
+
+@router.get("/keepalive")
+async def keep_a_live():
+    try:
+        return "Server is Running..."
+    except:
+        raise HTTPException(status_code=500, detail=str(e))
+  
