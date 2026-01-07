@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service
+from app.models.tailer_resume_request import TailerResumeRequestModel
 
 router = APIRouter(
     prefix="/resume",
