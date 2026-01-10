@@ -4,3 +4,5 @@ motor
 openai
 dotenv
 gunicorn
+groq
+pydantic
