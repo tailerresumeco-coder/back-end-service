@@ -52,7 +52,6 @@ async def download_resume(html, filename):
         <style>
           body {{
             font-family: Arial, sans-serif;
-            margin: 20px;
           }}
         </style>
       </head>
@@ -76,14 +75,23 @@ async def download_resume(html, filename):
         )
 
         await browser.close()
-
-    return StreamingResponse(
+    response = StreamingResponse(
         io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}"
-        }
+        media_type="application/pdf"
     )
+
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Access-Control-Allow-Origin"] = "https://tailer-resume.netlify.app"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+
+    return response
+    # return StreamingResponse(
+    #     io.BytesIO(pdf_bytes),
+    #     media_type="application/pdf",
+    #     headers={
+    #         "Content-Disposition": f"attachment; filename={filename}"
+    #     }
+    # )
 
 async def tailer_resume(resume_content, jd_text):
     try:
