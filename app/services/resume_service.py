@@ -10,6 +10,12 @@ from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
+from fastapi.responses import StreamingResponse
+import pdfkit
+import tempfile
+from fastapi.responses import FileResponse
+from playwright.async_api import async_playwright
+import io
 
 def get_openai_client():
     api_key = os.getenv("HF_API_KEY")
@@ -38,6 +44,49 @@ def extract_json(text):
 async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
+
+
+async def download_resume(html, filename):
+
+    html_document = f"""
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {{
+            font-family: Arial, sans-serif;
+            margin: 20px;
+          }}
+        </style>
+      </head>
+      <body>
+        {html}
+      </body>
+    </html>
+    """
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+
+        await page.set_content(html_document, wait_until="networkidle")
+
+        pdf_bytes = await page.pdf(
+            format="A4",
+            print_background=True,
+            margin={
+            }
+        )
+
+        await browser.close()
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 async def tailer_resume(resume_content, jd_text):
     try:

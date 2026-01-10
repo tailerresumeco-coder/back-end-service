@@ -1,6 +1,12 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import asyncio
+import sys
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -47,3 +53,5 @@ def create_item(item: Item):
 
 # Include routers LAST
 app.include_router(resume_router)
+
+# python -m playwright install chromium
