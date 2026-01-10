@@ -75,10 +75,6 @@ async def download_resume(html, filename):
             format="A4",
             print_background=True,
             margin={
-                "top": "15mm",
-                "bottom": "15mm",
-                "left": "15mm",
-                "right": "15mm"
             }
         )
 
