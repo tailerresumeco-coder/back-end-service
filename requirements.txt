@@ -5,3 +5,5 @@ openai
 dotenv
 gunicorn
 playwright
+groq
+pydantic

@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq
 from app.models.tailer_resume_request import TailerResumeRequestModel
 from app.models.download_resume_request import DownloadResumeRequestModel
+
 
 router = APIRouter(
     prefix="/resume",
@@ -24,7 +25,7 @@ async def upload_resume(payload: TailerResumeRequestModel):
     print('Begin resume_router.py -> upload_resume()')
     resume = payload.resume
     jd = payload.jd
-    response = await tailer_resume_service(payload.resume, payload.jd)
+    response = await tailor_resume_groq(payload.resume, payload.jd)
     print('End resume_router.py -> upload_resume()')
     return response
 
