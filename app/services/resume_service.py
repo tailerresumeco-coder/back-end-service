@@ -43,7 +43,7 @@ async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
 
-async def generate_resume_pdf(html: str, filename: str):
+async def download_resume(html: str, filename: str):
 
     html_document = f"""
     <html>
