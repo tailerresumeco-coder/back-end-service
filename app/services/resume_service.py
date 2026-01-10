@@ -50,9 +50,7 @@ async def download_resume(html, filename):
       <head>
         <meta charset="UTF-8">
         <style>
-          body {{
-            font-family: Arial, sans-serif;
-          }}
+          body {{ font-family: Arial, sans-serif; }}
         </style>
       </head>
       <body>
@@ -63,45 +61,29 @@ async def download_resume(html, filename):
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-        headless=True,
-        args=[
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--single-process"
-        ]
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-setuid-sandbox",
+                "--single-process"
+            ]
         )
 
         page = await browser.new_page()
-
         await page.set_content(html_document, wait_until="networkidle")
 
-        pdf_bytes = await page.pdf(
-            format="A4",
-            print_background=True,
-            margin={
-            }
-        )
-
+        pdf_bytes = await page.pdf(format="A4", print_background=True)
         await browser.close()
-    response = StreamingResponse(
+
+    return StreamingResponse(
         io.BytesIO(pdf_bytes),
-        media_type="application/pdf"
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
     )
-
-    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-    response.headers["Access-Control-Allow-Origin"] = "https://tailer-resume.netlify.app"
-    response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
-
-    return response
-
-    # return StreamingResponse(
-    #     io.BytesIO(pdf_bytes),
-    #     media_type="application/pdf",
-    #     headers={
-    #         "Content-Disposition": f"attachment; filename={filename}"
-    #     }
-    # )
 
 async def tailer_resume(resume_content, jd_text):
     try:
