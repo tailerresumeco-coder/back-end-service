@@ -6,6 +6,10 @@ import json
 import re
 import os
 from fastapi import HTTPException
+from groq import Groq
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_openai_client():
     api_key = os.getenv("HF_API_KEY")
@@ -59,3 +63,159 @@ async def tailer_resume(resume_content, jd_text):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+def get_groq_client() -> Groq:
+    """Initialize Groq client with API key from .env"""
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    
+    if not groq_api_key:
+        raise ValueError("GROQ_API_KEY not found in .env file")
+    
+    return Groq(api_key=groq_api_key)
+
+
+def extract_json(text: str) -> Dict[str, Any]:
+    """
+    Extract and parse JSON from LLM response.
+    Handles markdown formatting and cleaning.
+    
+    Args:
+        text: Raw response from Groq API
+        
+    Returns:
+        Parsed JSON dictionary
+        
+    Raises:
+        ValueError: If no valid JSON found in response
+    """
+    try:
+        # Remove markdown code blocks if present
+        text = text.strip()
+        if text.startswith('```'):
+            text = re.sub(r'^```(?:json)?\n?', '', text)
+            text = re.sub(r'\n?```$', '', text)
+        
+        # Find JSON boundaries
+        start_idx = text.find('{')
+        end_idx = text.rfind('}')
+        
+        if start_idx == -1 or end_idx == -1:
+            raise ValueError("No JSON object found in response")
+        
+        json_str = text[start_idx:end_idx + 1]
+        return json.loads(json_str)
+    
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in response: {str(e)}")
+
+
+async def tailor_resume_groq(
+    resume_content: str,
+    jd_text: str
+) -> Dict[str, Any]:
+    """
+    Tailor resume using Groq API with PROMPT_9.
+    Simple, no retries - let it fail fast so we collect real data.
+    
+    Args:
+        resume_content: Raw resume text
+        jd_text: Job description text
+    
+    Returns:
+        Dict with status, data, and metadata
+    """
+    
+    # Prepare the prompt by replacing placeholders
+    prompt = PROMPT_9.replace("{{RESUME_TEXT}}", resume_content)
+    prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
+    
+    # Initialize Groq client
+    client = get_groq_client()
+
+    # Get model from environment
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    try:
+        # Call Groq API
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0,  # Deterministic for structured data
+            max_tokens=4096
+        )
+        
+        # Extract response
+        response_text = completion.choices[0].message.content
+        
+        # Parse JSON
+        try:
+            parsed_response = extract_json(response_text)
+        except ValueError as json_error:
+            return {
+                "status": "error",
+                "code": "JSON_PARSE_ERROR",
+                "message": "Could not parse AI response as JSON",
+                "error": str(json_error),
+                "raw_response": response_text[:500]  # First 500 chars for debugging
+            }
+        
+        # Success
+        input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
+        output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
+        
+        return {
+            "status": "success",
+            "data": parsed_response,
+            "model": "llama-3.1-70b-versatile",
+            "tokens_used": {
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens
+            }
+        }
+    
+    except Exception as e:
+        error_msg = str(e).lower()
+        
+        # Token/context limit error
+        if "token" in error_msg or "context" in error_msg:
+            return {
+                "status": "error",
+                "code": "TOKEN_LIMIT_EXCEEDED",
+                "message": "Resume + JD combination too long. Please use a shorter resume (max 2 pages) or shorter JD (max 1 page).",
+                "error": str(e)
+            }
+        
+        # Rate limit error
+        if "rate" in error_msg or "quota" in error_msg:
+            return {
+                "status": "error",
+                "code": "RATE_LIMIT",
+                "message": "Too many requests. Please try again in a moment.",
+                "error": str(e)
+            }
+        
+        # API key error
+        if "api" in error_msg or "auth" in error_msg or "key" in error_msg:
+            return {
+                "status": "error",
+                "code": "API_KEY_ERROR",
+                "message": "Server configuration error. Please contact support.",
+                "error": str(e)
+            }
+        
+        # Generic error
+        return {
+            "status": "error",
+            "code": "GROQ_API_ERROR",
+            "message": "Error processing resume with AI service",
+            "error": str(e)
+        }
