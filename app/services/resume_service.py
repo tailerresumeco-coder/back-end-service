@@ -62,7 +62,16 @@ async def download_resume(html, filename):
     """
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(
+        headless=True,
+        args=[
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--single-process"
+        ]
+        )
+
         page = await browser.new_page()
 
         await page.set_content(html_document, wait_until="networkidle")
@@ -85,6 +94,7 @@ async def download_resume(html, filename):
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
 
     return response
+
     # return StreamingResponse(
     #     io.BytesIO(pdf_bytes),
     #     media_type="application/pdf",
