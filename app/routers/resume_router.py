@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service
 from app.models.tailer_resume_request import TailerResumeRequestModel
+from app.models.download_resume_request import DownloadResumeRequestModel
 
 router = APIRouter(
     prefix="/resume",
@@ -34,3 +35,9 @@ async def keep_a_live():
     except:
         raise HTTPException(status_code=500, detail=str(e))
   
+@router.post("/download-pdf")
+async def download_resume(payload: DownloadResumeRequestModel):
+    print('Begin resume_router.py -> download_resume()')
+    response = await download_resume_service(payload.html, payload.filename)
+    print('End resume_router.py -> download_resume()')
+    return response
