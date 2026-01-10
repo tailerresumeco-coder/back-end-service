@@ -11,8 +11,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
-from playwright.async_api import async_playwright
 import io
+from weasyprint import HTML
+# from playwright.async_api import async_playwright
 
 def get_openai_client():
     api_key = os.getenv("HF_API_KEY")
@@ -42,15 +43,40 @@ async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
 
-
-async def download_resume(html, filename):
+async def generate_resume_pdf(html: str, filename: str):
 
     html_document = f"""
     <html>
       <head>
         <meta charset="UTF-8">
         <style>
-          body {{ font-family: Arial, sans-serif; }}
+          @page {{
+            size: A4;
+            margin: 25mm;
+          }}
+
+          body {{
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #111;
+          }}
+
+          h1 {{
+            font-size: 22pt;
+            margin-bottom: 4px;
+          }}
+
+          h2 {{
+            font-size: 14pt;
+            margin-top: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+          }}
+
+          .section {{
+            page-break-inside: avoid;
+          }}
         </style>
       </head>
       <body>
@@ -59,23 +85,7 @@ async def download_resume(html, filename):
     </html>
     """
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-setuid-sandbox",
-                "--single-process"
-            ]
-        )
-
-        page = await browser.new_page()
-        await page.set_content(html_document, wait_until="networkidle")
-
-        pdf_bytes = await page.pdf(format="A4", print_background=True)
-        await browser.close()
+    pdf_bytes = HTML(string=html_document).write_pdf()
 
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -84,6 +94,49 @@ async def download_resume(html, filename):
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
+
+
+# async def download_resume(html, filename):
+
+#     html_document = f"""
+#     <html>
+#       <head>
+#         <meta charset="UTF-8">
+#         <style>
+#           body {{ font-family: Arial, sans-serif; }}
+#         </style>
+#       </head>
+#       <body>
+#         {html}
+#       </body>
+#     </html>
+#     """
+
+#     async with async_playwright() as p:
+#         browser = await p.chromium.launch(
+#             headless=True,
+#             args=[
+#                 "--no-sandbox",
+#                 "--disable-dev-shm-usage",
+#                 "--disable-gpu",
+#                 "--disable-setuid-sandbox",
+#                 "--single-process"
+#             ]
+#         )
+
+#         page = await browser.new_page()
+#         await page.set_content(html_document, wait_until="networkidle")
+
+#         pdf_bytes = await page.pdf(format="A4", print_background=True)
+#         await browser.close()
+
+#     return StreamingResponse(
+#         io.BytesIO(pdf_bytes),
+#         media_type="application/pdf",
+#         headers={
+#             "Content-Disposition": f'attachment; filename="{filename}"'
+#         }
+#     )
 
 async def tailer_resume(resume_content, jd_text):
     try:
