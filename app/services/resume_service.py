@@ -11,9 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
-import pdfkit
-import tempfile
-from fastapi.responses import FileResponse
 from playwright.async_api import async_playwright
 import io
 
