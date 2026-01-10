@@ -27,6 +27,7 @@ app.add_middleware(
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
+    expose_headers=["Content-Disposition"]
 )
 
 # ─────────────────────────────────────────────
