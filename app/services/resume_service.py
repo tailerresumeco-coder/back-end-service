@@ -50,28 +50,27 @@ async def download_resume(html: str, filename: str):
       <head>
         <meta charset="UTF-8">
         <style>
-          @page {{
+  @page {{
             size: A4;
-            margin: 25mm;
+            margin: 10mm 12mm;   /* top/bottom left/right */
           }}
 
-          body {{
-            font-family: Arial, sans-serif;
-            font-size: 11pt;
-            line-height: 1.5;
-            color: #111;
+          /* RESET BROWSER DEFAULTS */
+          html, body {{
+            margin: 0;
+            padding: 0;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
           }}
 
-          h1 {{
-            font-size: 22pt;
-            margin-bottom: 4px;
-          }}
-
-          h2 {{
-            font-size: 14pt;
-            margin-top: 20px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 4px;
+          /* REMOVE PREVIEW STYLES */
+          .main-container {{
+            min-height: auto !important;
+            transform: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }}
 
           .section {{
