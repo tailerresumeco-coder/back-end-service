@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from app.db import resumes_collection
+from app.db import resumes_collection, groq_tokens_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9
 import json
@@ -86,6 +86,12 @@ async def download_resume(html: str, filename: str):
 
     pdf_bytes = HTML(string=html_document).write_pdf()
 
+    is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
+    if not is_groq_exists:
+        await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
+    else:
+        await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
+    
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
@@ -93,49 +99,6 @@ async def download_resume(html: str, filename: str):
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
-
-
-# async def download_resume(html, filename):
-
-#     html_document = f"""
-#     <html>
-#       <head>
-#         <meta charset="UTF-8">
-#         <style>
-#           body {{ font-family: Arial, sans-serif; }}
-#         </style>
-#       </head>
-#       <body>
-#         {html}
-#       </body>
-#     </html>
-#     """
-
-#     async with async_playwright() as p:
-#         browser = await p.chromium.launch(
-#             headless=True,
-#             args=[
-#                 "--no-sandbox",
-#                 "--disable-dev-shm-usage",
-#                 "--disable-gpu",
-#                 "--disable-setuid-sandbox",
-#                 "--single-process"
-#             ]
-#         )
-
-#         page = await browser.new_page()
-#         await page.set_content(html_document, wait_until="networkidle")
-
-#         pdf_bytes = await page.pdf(format="A4", print_background=True)
-#         await browser.close()
-
-#     return StreamingResponse(
-#         io.BytesIO(pdf_bytes),
-#         media_type="application/pdf",
-#         headers={
-#             "Content-Disposition": f'attachment; filename="{filename}"'
-#         }
-#     )
 
 async def tailer_resume(resume_content, jd_text):
     try:
@@ -162,9 +125,6 @@ async def tailer_resume(resume_content, jd_text):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-
 def get_groq_client() -> Groq:
     """Initialize Groq client with API key from .env"""
     groq_api_key = os.getenv("GROQ_API_KEY")
@@ -173,7 +133,6 @@ def get_groq_client() -> Groq:
         raise ValueError("GROQ_API_KEY not found in .env file")
     
     return Groq(api_key=groq_api_key)
-
 
 def extract_json(text: str) -> Dict[str, Any]:
     """
@@ -208,7 +167,6 @@ def extract_json(text: str) -> Dict[str, Any]:
     
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in response: {str(e)}")
-
 
 async def tailor_resume_groq(
     resume_content: str,
@@ -268,7 +226,9 @@ async def tailor_resume_groq(
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        
+        groq_collection = groq_tokens_collection.insert_one(
+            {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20, "last_updated": datetime.utcnow()}
+        )
         return {
             "status": "success",
             "data": parsed_response,
