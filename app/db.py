@@ -1,11 +1,13 @@
 # app/db.py
 from motor.motor_asyncio import AsyncIOMotorClient
+import os
 
-MONGO_URI = "mongodb://localhost:27017"  # update if using Atlas or different host
-DB_NAME = "tailer_resume"               # you can name this whatever you want
+MONGO_URI = os.getenv("MONGO_URI1")
+DB_NAME = "tailer_resume"
 
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[DB_NAME]
 
 # collection where you'll store resumes
 resumes_collection = db["resumes"]
+groq_tokens_collection = db["groq_tokens"]
