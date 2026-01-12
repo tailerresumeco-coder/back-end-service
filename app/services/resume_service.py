@@ -84,7 +84,7 @@ async def download_resume(html: str, filename: str):
     </html>
     """
 
-    # pdf_bytes = HTML(string=html_document).write_pdf()
+    pdf_bytes = HTML(string=html_document).write_pdf()
 
     # is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
     # if not is_groq_exists:
