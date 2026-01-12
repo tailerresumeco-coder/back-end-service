@@ -84,13 +84,13 @@ async def download_resume(html: str, filename: str):
     </html>
     """
 
-    pdf_bytes = HTML(string=html_document).write_pdf()
+    # pdf_bytes = HTML(string=html_document).write_pdf()
 
-    is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
-    if not is_groq_exists:
-        await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
-    else:
-        await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
+    # is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
+    # if not is_groq_exists:
+    #     await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
+    # else:
+    #     await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
