@@ -7,3 +7,4 @@ gunicorn
 groq
 pydantic
 weasyprint
+apscheduler
