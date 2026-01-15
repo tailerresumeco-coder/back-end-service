@@ -30,7 +30,7 @@ async def upload_resume(payload: TailerResumeRequestModel):
     return response
 
 @router.get("/keepalive")
-async def keep_a_live():
+def keep_a_live():
     try:
         print('FROM keepalive() :: Server is Running...')
         return "Server is Running..."
