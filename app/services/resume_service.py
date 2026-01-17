@@ -1,15 +1,19 @@
 from typing import Any, Dict
-from app.db import resumes_collection
+from app.db import resumes_collection, groq_tokens_collection
 from openai import OpenAI
-from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9
+from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9, PROMPT_10, PROMPT_11
 import json
 import re
 import os
 from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
+from app.services.mail_service import send_email_test
 
 load_dotenv()
+from fastapi.responses import StreamingResponse
+import io
+from weasyprint import HTML
 
 def get_openai_client():
     api_key = os.getenv("HF_API_KEY")
@@ -39,12 +43,74 @@ async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
 
+async def download_resume(html: str, filename: str):
+    
+    try:
+        email_res = await send_email_test()
+        print(email_res)
+    except:
+        print('error in send_email_test()')
+
+    html_document = f"""
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+  @page {{
+            size: A4;
+            margin: 10mm 12mm;   /* top/bottom left/right */
+          }}
+
+          /* RESET BROWSER DEFAULTS */
+          html, body {{
+            margin: 0;
+            padding: 0;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+          }}
+
+          /* REMOVE PREVIEW STYLES */
+          .main-container {{
+            min-height: auto !important;
+            transform: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }}
+
+          .section {{
+            page-break-inside: avoid;
+          }}
+        </style>
+      </head>
+      <body>
+        {html}
+      </body>
+    </html>
+    """
+
+    pdf_bytes = HTML(string=html_document).write_pdf()
+
+    # is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
+    # if not is_groq_exists:
+    #     await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
+    # else:
+    #     await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
 async def tailer_resume(resume_content, jd_text):
     try:
         prompt = PROMPT_9
         prompt = prompt.replace("{{RESUME_TEXT}}", resume_content)
         prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
-
         client = get_openai_client()
 
         completion = client.chat.completions.create(
@@ -64,9 +130,6 @@ async def tailer_resume(resume_content, jd_text):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-
 def get_groq_client() -> Groq:
     """Initialize Groq client with API key from .env"""
     groq_api_key = os.getenv("GROQ_API_KEY")
@@ -75,7 +138,6 @@ def get_groq_client() -> Groq:
         raise ValueError("GROQ_API_KEY not found in .env file")
     
     return Groq(api_key=groq_api_key)
-
 
 def extract_json(text: str) -> Dict[str, Any]:
     """
@@ -111,7 +173,6 @@ def extract_json(text: str) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in response: {str(e)}")
 
-
 async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
@@ -129,7 +190,7 @@ async def tailor_resume_groq(
     """
     
     # Prepare the prompt by replacing placeholders
-    prompt = PROMPT_9.replace("{{RESUME_TEXT}}", resume_content)
+    prompt = PROMPT_11.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client
@@ -170,7 +231,9 @@ async def tailor_resume_groq(
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        
+        groq_collection = groq_tokens_collection.insert_one(
+            {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20,}
+        )
         return {
             "status": "success",
             "data": parsed_response,

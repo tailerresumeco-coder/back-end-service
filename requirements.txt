@@ -6,3 +6,6 @@ dotenv
 gunicorn
 groq
 pydantic
+weasyprint
+apscheduler
+httpx
