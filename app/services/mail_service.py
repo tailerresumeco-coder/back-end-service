@@ -1,29 +1,44 @@
 import os
 from email.message import EmailMessage
 import aiosmtplib
-from app.utils.mail_templates import TESTING
+from app.utils.mail_templates import TESTING as testing_mail_template
+import httpx
 
 EMAIL = os.getenv('SMTP_EMAIL')
-PASSWORD = os.getenv('SMTP_PASSWORD')
-PORT = int(os.getenv('SMTP_PORT'))
-SERVER = os.getenv('SMTP_SERVER')
+
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+
+async def send_email(to: str, subject: str, body: str):
+    print('Start send mail')
+    url = "https://api.sendgrid.com/v3/mail/send"
+
+    headers = {
+        "Authorization": f"Bearer {SENDGRID_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "personalizations": [{
+            "to": [{"email": to}]
+        }],
+        "from": {"email": EMAIL},
+        "subject": subject,
+        "content": [{
+            "type": "text/plain",
+            "value": body
+        }]
+    }
+    
+    
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.post(url, headers=headers, json=payload)
+
+    print('response', response)
+    return response.status_code
 
 
-async def send_email_test(to: str = 'ranaabashetty@gmail.com', subject: str = 'Testing'):
-    body = TESTING
-    print('Begin send_email()', EMAIL, to, subject, body, PASSWORD)
-    message = EmailMessage()
-    message["From"] = EMAIL
-    message["To"] = to
-    message["Subject"] = subject
-    message.set_content(body)
-    print(await aiosmtplib.send(
-        message,
-        hostname=SERVER,
-        port=PORT,
-        start_tls=True,
-        username=EMAIL,
-        password=PASSWORD,
-    ))
-    print('End send mail', message)
+async def send_email_test():
+    print('Start send mail test')
+    await send_email('ranaabashetty@gmail.com', 'Testing', testing_mail_template)
+    print('End send mail test')
     

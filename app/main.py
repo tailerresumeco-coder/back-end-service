@@ -37,7 +37,7 @@ background_scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def startup_event():
-    background_scheduler.add_job(keep_a_live, "interval", minutes=14)
+    background_scheduler.add_job(keep_a_live, "interval", minutes=1)
     background_scheduler.start()
 
 @app.get("/")
