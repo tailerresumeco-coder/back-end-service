@@ -8,3 +8,5 @@ groq
 pydantic
 weasyprint
 apscheduler
+aiosmtplib 
+email-validator

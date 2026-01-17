@@ -1,19 +1,19 @@
 from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection
 from openai import OpenAI
-from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9
+from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9, PROMPT_10, PROMPT_11
 import json
 import re
 import os
 from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
+from app.services.mail_service import send_email_test
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
 import io
 from weasyprint import HTML
-# from playwright.async_api import async_playwright
 
 def get_openai_client():
     api_key = os.getenv("HF_API_KEY")
@@ -44,6 +44,12 @@ async def upload_resume(payload: Dict[str, Any]):
     return "Resume uploaded successfully"
 
 async def download_resume(html: str, filename: str):
+    
+    try:
+        email_res = await send_email_test()
+        print(email_res)
+    except:
+        print('error in send_email_test()')
 
     html_document = f"""
     <html>
@@ -105,7 +111,6 @@ async def tailer_resume(resume_content, jd_text):
         prompt = PROMPT_9
         prompt = prompt.replace("{{RESUME_TEXT}}", resume_content)
         prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
-
         client = get_openai_client()
 
         completion = client.chat.completions.create(
@@ -185,7 +190,7 @@ async def tailor_resume_groq(
     """
     
     # Prepare the prompt by replacing placeholders
-    prompt = PROMPT_9.replace("{{RESUME_TEXT}}", resume_content)
+    prompt = PROMPT_11.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client
