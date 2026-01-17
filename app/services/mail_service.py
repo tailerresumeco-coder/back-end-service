@@ -4,12 +4,12 @@ import aiosmtplib
 from app.utils.mail_templates import TESTING
 
 EMAIL = os.getenv('SMTP_EMAIL')
-PASSWORD = os.getenv('SMPT_PASSWORD')
-PORT = os.getenv('SMTP_PORT')
+PASSWORD = os.getenv('SMTP_PASSWORD')
+PORT = int(os.getenv('SMTP_PORT'))
 SERVER = os.getenv('SMTP_SERVER')
 
 
-async def send_email_test(to: str = 'tailer.resume.co@gmail.com', subject: str = 'Testing'):
+async def send_email_test(to: str = 'ranaabashetty@gmail.com', subject: str = 'Testing'):
     body = TESTING
     print('Begin send_email()', EMAIL, to, subject, body, PASSWORD)
     message = EmailMessage()
