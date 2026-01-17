@@ -1,6 +1,5 @@
 import os
 from email.message import EmailMessage
-import aiosmtplib
 from app.utils.mail_templates import TESTING as testing_mail_template
 import httpx
 
