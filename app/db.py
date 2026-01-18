@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import certifi
 
-MONGO_URI = os.environ["MONGO_URI"]
+MONGO_URI = os.environ["MONGO_URI"] 
 DB_NAME = "tailer_resume"
 
 client = AsyncIOMotorClient(
