@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
 from app.services.mail_service import send_email_test
+from app.services.token_service import get_active_apikey
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -130,10 +131,11 @@ async def tailer_resume(resume_content, jd_text):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def get_groq_client() -> Groq:
+async def get_groq_client() -> Groq:
     """Initialize Groq client with API key from .env"""
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    
+    # groq_api_key = os.getenv("GROQ_API_KEY")
+    groq_api_key =await get_active_apikey()
+    print("api key",groq_api_key)
     if not groq_api_key:
         raise ValueError("GROQ_API_KEY not found in .env file")
     
@@ -194,7 +196,7 @@ async def tailor_resume_groq(
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client
-    client = get_groq_client()
+    client =await get_groq_client()
 
     # Get model from environment
     model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
