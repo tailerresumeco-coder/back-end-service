@@ -2,7 +2,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 
-MONGO_URI = os.getenv("MONGO_URI1")
+MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "tailer_resume"
 
 client = AsyncIOMotorClient(MONGO_URI)
