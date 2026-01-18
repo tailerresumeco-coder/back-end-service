@@ -64,5 +64,3 @@ def create_item(item: Item):
 # Include routers LAST
 app.include_router(resume_router)
 app.include_router(token_router)
-
-# python -m playwright install chromium
