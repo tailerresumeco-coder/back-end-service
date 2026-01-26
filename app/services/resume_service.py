@@ -233,9 +233,9 @@ async def tailor_resume_groq(
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        groq_collection = groq_tokens_collection.insert_one(
-            {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20,}
-        )
+        # groq_collection = groq_tokens_collection.insert_one(
+        #     {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20,}
+        # )
         return {
             "status": "success",
             "data": parsed_response,
