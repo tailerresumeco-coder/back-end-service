@@ -24,7 +24,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://tailer-resume.netlify.app",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "https://tailerresume.com"
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
