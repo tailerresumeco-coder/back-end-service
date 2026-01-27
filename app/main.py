@@ -26,7 +26,7 @@ app.add_middleware(
         "https://tailer-resume.netlify.app",
         "http://localhost:5173",
         "https://tailerresume.com",
-        "www.tailerresume.com"
+        "https://www.tailerresume.com"
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
