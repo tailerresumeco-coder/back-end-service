@@ -10,7 +10,7 @@ if sys.platform.startswith("win"):
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.routers.resume_router import router as resume_router, keep_a_live
+from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
 from apscheduler.schedulers.background import BackgroundScheduler
 
