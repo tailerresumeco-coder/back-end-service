@@ -22,6 +22,7 @@ async def upload_resume(payload: Dict[str, Any]):
 
 @router.post("/tailer-resume")
 async def upload_resume(payload: TailerResumeRequestModel):
+    
     print('Begin resume_router.py -> upload_resume()')
     resume = payload.resume
     jd = payload.jd
@@ -29,14 +30,6 @@ async def upload_resume(payload: TailerResumeRequestModel):
     print('End resume_router.py -> upload_resume()')
     return response
 
-@router.get("/keepalive")
-def keep_a_live():
-    try:
-        print('FROM keepalive() :: Server is Running...')
-        return "Server is Running..."
-    except:
-        raise HTTPException(status_code=500, detail=str(e))
-  
 @router.post("/download-pdf")
 async def download_resume(payload: DownloadResumeRequestModel):
     print('Begin resume_router.py -> download_resume()')
