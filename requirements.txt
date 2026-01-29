@@ -9,3 +9,5 @@ pydantic
 weasyprint
 apscheduler
 httpx
+certifi
+dnspython

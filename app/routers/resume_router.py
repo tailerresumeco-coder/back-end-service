@@ -23,6 +23,7 @@ async def upload_resume(payload: Dict[str, Any]):
 
 @router.post("/tailer-resume")
 async def tailer_resume(payload: TailerResumeRequestModel):
+    
     """
     Legacy endpoint - uses new V2 two-step processing by default.
     """
@@ -59,14 +60,6 @@ async def tailer_resume_legacy(payload: TailerResumeRequestModel):
     print('End resume_router.py -> tailer_resume_legacy()')
     return response
 
-@router.get("/keepalive")
-def keep_a_live():
-    try:
-        print('FROM keepalive() :: Server is Running...')
-        return "Server is Running..."
-    except:
-        raise HTTPException(status_code=500, detail=str(e))
-  
 @router.post("/download-pdf")
 async def download_resume(payload: DownloadResumeRequestModel):
     print('Begin resume_router.py -> download_resume()')

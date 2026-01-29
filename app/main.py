@@ -10,7 +10,7 @@ if sys.platform.startswith("win"):
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.routers.resume_router import router as resume_router, keep_a_live
+from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -24,7 +24,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://tailer-resume.netlify.app",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "https://tailerresume.com",
+        "https://www.tailerresume.com"
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -35,11 +37,6 @@ app.add_middleware(
 background_scheduler = BackgroundScheduler()
 
 # ─────────────────────────────────────────────
-
-@app.on_event("startup")
-def startup_event():
-    background_scheduler.add_job(keep_a_live, "interval", minutes=1)
-    background_scheduler.start()
 
 @app.get("/")
 def read_root():
@@ -64,5 +61,3 @@ def create_item(item: Item):
 # Include routers LAST
 app.include_router(resume_router)
 app.include_router(token_router)
-
-# python -m playwright install chromium
