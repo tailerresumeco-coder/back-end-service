@@ -134,7 +134,7 @@ async def tailer_resume(resume_content, jd_text):
 async def get_groq_client() -> Groq:
     """Initialize Groq client with API key from .env"""
     # groq_api_key = os.getenv("GROQ_API_KEY")
-    groq_api_key =await get_active_apikey()
+    groq_api_key = await get_active_apikey()
     print("api key",groq_api_key)
     if not groq_api_key:
         raise ValueError("GROQ_API_KEY not found in .env file")
@@ -236,6 +236,7 @@ async def tailor_resume_groq(
         # groq_collection = groq_tokens_collection.insert_one(
         #     {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20,}
         # )
+        print('completion', completion)
         return {
             "status": "success",
             "data": parsed_response,
