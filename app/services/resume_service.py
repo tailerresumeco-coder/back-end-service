@@ -1,7 +1,8 @@
 from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection
 from openai import OpenAI
-from app.utils.prompts import PROMPT_7, PROMPT_8, PROMPT_9, PROMPT_10, PROMPT_11
+from app.utils.prompts import PROMPT_9
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT
 import json
 import re
 import os
@@ -192,7 +193,7 @@ async def tailor_resume_groq(
     """
     
     # Prepare the prompt by replacing placeholders
-    prompt = PROMPT_11.replace("{{RESUME_TEXT}}", resume_content)
+    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client

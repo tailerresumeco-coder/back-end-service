@@ -1487,11 +1487,14 @@ PROMPT_11 = '''
           }
         ],
         "education": [{ "institution": "", "degree": "", "duration": "", "gpa": "" }],
-        "skills": {
-          "technical_skills": [],
-          "soft_skills": [],
-          "tools_and_languages": []
-        },
+        "skills": [
+          { "category": "Languages", "items": [] },
+          { "category": "Frameworks", "items": [] },
+          { "category": "Databases", "items": [] },
+          { "category": "Cloud & DevOps", "items": [] },
+          { "category": "Tools", "items": [] },
+          { "category": "Soft Skills", "items": [] }
+        ],
         "projects": [
           {
             "project_name": "",
@@ -1503,6 +1506,23 @@ PROMPT_11 = '''
         "highlight_keywords": []
       }
     }
+
+    ----------------------------------------
+    SKILLS CATEGORIZATION RULES:
+    ----------------------------------------
+    Create DYNAMIC skill categories based on resume content. Examples:
+    - Languages: Java, Python, JavaScript, TypeScript, SQL, Go
+    - Frameworks: Spring Boot, React, Angular, Node.js, Django, NestJS
+    - Databases: PostgreSQL, MongoDB, MySQL, Redis, Elasticsearch
+    - Cloud & DevOps: AWS, Azure, GCP, Docker, Kubernetes, CI/CD, Jenkins
+    - Tools: Git, Postman, Figma, Jira, VS Code, Swagger
+    - Soft Skills: Problem Solving, Communication, Leadership, Agile
+
+    IMPORTANT:
+    - Create categories that fit the resume (don't force empty categories)
+    - Each category should have 2+ items
+    - Combine sparse categories if needed
+    - Order categories by relevance to JD
 
     ----------------------------------------
     INPUT:
