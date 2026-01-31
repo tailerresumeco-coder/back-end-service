@@ -32,15 +32,32 @@ RESUME_TAILOR_PROMPT = """You are an ATS resume parser and optimizer. Extract AL
 - Each project has: project_name, duration, technologies, responsibilities
 - Use "role" field, duration in "MMM YYYY – MMM YYYY" format
 
-### 5. PROJECT CLASSIFICATION
-- Experience section: Work projects tied to company
-- Projects section: Personal, academic, hackathon projects
-- A project appears in ONE section only
+### 5. PROJECT CLASSIFICATION (STRICT - NO DUPLICATES)
+- Experience section: ONLY work projects done at a company (part of job responsibilities)
+- Projects section: ONLY personal, academic, side projects, or hackathon projects (NOT done at any employer)
+- A project MUST appear in ONE section ONLY - NEVER IN BOTH
+- If a project is mentioned under work experience (company/employer), DO NOT add it to the projects section
+- If a project has no associated company/employer, it goes in projects section only
 
 ### 6. SKILLS EXTRACTION
-Extract exactly as written, categorize into:
-- technical_skills: languages, frameworks, databases, cloud services
-- tools_and_languages: devops, tools, utilities
+Extract ALL skills from resume and organize into DYNAMIC categories based on actual content.
+Create categories that best represent the resume's skills (examples below, but use what fits):
+- Languages: Java, Python, JavaScript, TypeScript, SQL
+- Frameworks: Spring Boot, React, Angular, Node.js, Express
+- Databases: PostgreSQL, MongoDB, MySQL, Redis
+- Cloud & DevOps: AWS, Docker, Kubernetes, CI/CD, Jenkins
+- Tools: Git, Postman, Figma, Jira, VS Code
+- Soft Skills: Problem Solving, Communication, Teamwork
+
+IMPORTANT: Create as many or as few categories as needed based on the resume content.
+Each category should have at least 2-3 items. Combine sparse categories if needed.
+
+### 7. CHANGE TRACKING
+For transparency, document all modifications made during tailoring:
+- Track which bullets were rephrased and why
+- List keywords injected from JD into content
+- Note action verbs that were strengthened
+- Summarize changes made to each section
 
 ## ATS SCORE
 Score = (Matched JD Keywords / Total JD Keywords) × 100
@@ -97,10 +114,16 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
         "gpa": ""
       }
     ],
-    "skills": {
-      "technical_skills": [],
-      "tools_and_languages": []
-    },
+    "skills": [
+      {
+        "category": "Languages",
+        "items": []
+      },
+      {
+        "category": "Frameworks",
+        "items": []
+      }
+    ],
     "projects": [
       {
         "project_name": "",
@@ -115,6 +138,18 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
     "input_bullet_count": 0,
     "output_bullet_count": 0,
     "data_integrity_verified": true
+  },
+  "change_summary": {
+    "total_modifications": 0,
+    "summary_changes": "Description of changes made to professional summary",
+    "experience_modifications": [
+      {
+        "company": "Company Name",
+        "changes": ["Rephrased bullet to include keyword X", "Strengthened action verb from Y to Z"]
+      }
+    ],
+    "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
+    "keywords_injected": ["keyword1", "keyword2"]
   }
 }
 
@@ -123,6 +158,7 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
 ☐ output_bullet_count >= input_bullet_count
 ☐ No skills added that weren't in resume
 ☐ Missing JD skills are in gap_analysis only
+☐ change_summary accurately reflects all modifications made
 
 Return ONLY valid JSON. No markdown.
 
