@@ -22,3 +22,4 @@ db = client[DB_NAME]
 
 resumes_collection = db["resumes"]
 groq_tokens_collection = db["groq_tokens"]
+users_collection = db["users"]

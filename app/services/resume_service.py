@@ -2,7 +2,7 @@ from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
-from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0
 import json
 import re
 import os
@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
 from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email
-from app.services.token_service import get_active_apikey, update_token_obj
+from app.services.token_service import get_active_apikey, update_token_obj, add_user_details
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -222,8 +222,16 @@ async def tailor_resume_groq(
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        token_record = await groq_tokens_collection.find_one({"apikey": await get_active_apikey()})
-        groq_collection = await update_token_obj(await get_active_apikey(), tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
+        
+        active_api_key = await get_active_apikey()
+        token_record = await groq_tokens_collection.find_one({"apikey": active_api_key})
+        groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
+        await add_user_details(
+            email=parsed_response["basic"]["email"],
+            name=parsed_response["basic"]["name"],
+            phone=parsed_response["basic"]["phone"]
+        )
+        
         if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
             try:
                 await send_token_nearly_exhausted_email()
