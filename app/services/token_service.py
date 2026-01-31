@@ -1,5 +1,6 @@
-from app.db import groq_tokens_collection
+from app.db import groq_tokens_collection, users_collection
 from bson import ObjectId
+
 
 async def get_active_apikey() -> str:
     token_doc = await groq_tokens_collection.find_one({"active": True})
@@ -14,8 +15,9 @@ async def get_all_tokens() -> list:
         token["_id"] = str(token["_id"])
     return tokens
 
+
 async def update_token_obj(apikey, active=None, tokens=None, requests=None):
-    token = await groq_tokens_collection.find_one({'apikey': apikey})
+    token = await groq_tokens_collection.find_one({"apikey": apikey})
     if not token:
         return {"message": "API key not found", "status": "ERROR"}
 
@@ -31,10 +33,7 @@ async def update_token_obj(apikey, active=None, tokens=None, requests=None):
     if not update_fields:
         return {"message": "Nothing to update", "status": "ERROR"}
 
-    await groq_tokens_collection.update_one(
-        {'apikey': apikey},
-        {'$set': update_fields}
-    )
+    await groq_tokens_collection.update_one({"apikey": apikey}, {"$set": update_fields})
 
     return await get_all_tokens()
 
@@ -45,40 +44,64 @@ async def set_apikey_active(apikey):
 
     # activate one
     await groq_tokens_collection.update_one(
-        {'apikey': apikey},
-        {'$set': {'active': True}}
+        {"apikey": apikey}, {"$set": {"active": True}}
     )
 
     return await get_all_tokens()
 
+
 async def add_apikey(apikey, name, tokens=0, requests=0):
-    print('Begin token_service.py -> add_apikey()')
-    is_exists = await groq_tokens_collection.find_one({'apikey': apikey})
+    print("Begin token_service.py -> add_apikey()")
+    is_exists = await groq_tokens_collection.find_one({"apikey": apikey})
     if is_exists:
         return {"message": "API key already exists", "status": "ERROR"}
 
-    await groq_tokens_collection.insert_one({
-        'apikey': apikey,
-        'active': False,
-        'tokens': tokens,
-        'requests': requests,
-        'name': name
-    })
-    print('End token_service.py -> add_apikey()')
+    await groq_tokens_collection.insert_one(
+        {
+            "apikey": apikey,
+            "active": False,
+            "tokens": tokens,
+            "requests": requests,
+            "name": name,
+        }
+    )
+    print("End token_service.py -> add_apikey()")
 
     return await get_all_tokens()
+
 
 async def delete_apikey(id):
-    print('Begin token_service.py -> delete_apikey()', id)
+    print("Begin token_service.py -> delete_apikey()", id)
     try:
-        token = await groq_tokens_collection.find_one({'_id': id})
+        token = await groq_tokens_collection.find_one({"_id": id})
     except Exception as e:
-        print(f'Error finding token: {e}')
+        print(f"Error finding token: {e}")
         return {"message": "Error accessing the database", "status": "ERROR"}
-    print('Deleted obj token is:', token)
+    print("Deleted obj token is:", token)
     if not token:
         return {"message": "API key not found", "status": "ERROR"}
-    deleted_token = await groq_tokens_collection.delete_one({'_id': id})
-    print('End token_service.py -> delete_apikey()', deleted_token)
+    deleted_token = await groq_tokens_collection.delete_one({"_id": id})
+    print("End token_service.py -> delete_apikey()", deleted_token)
     return await get_all_tokens()
-    
+
+
+async def add_user_details(email="", name="", phone=""):
+    print("Begin token_service.py -> add_user_details()", email, name, phone)
+    try:
+        user = await get_user_details(email)
+        if not user:
+            result = await users_collection.insert_one(
+                {"name": name, "email": email, "phone": phone}
+            )
+            print(f"User added with id: {result.inserted_id}")
+        else:
+            print("User already exists.")
+    except Exception as e:
+        print(f"Error adding user: {e}")
+
+
+async def get_user_details(email: str):
+    user = await users_collection.find_one({"email": email})
+    if user:
+        user["_id"] = str(user["_id"])
+    return user
