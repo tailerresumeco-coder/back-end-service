@@ -1,6 +1,6 @@
 import os
 from email.message import EmailMessage
-from app.utils.mail_templates import TESTING as testing_mail_template
+from app.utils.mail_templates import TESTING as testing_mail_template, TOKEN_NEARLY_EXHAUSTED
 import httpx
 
 EMAIL = os.getenv('SMTP_EMAIL')
@@ -23,7 +23,7 @@ async def send_email(to: str, subject: str, body: str):
         "from": {"email": EMAIL},
         "subject": subject,
         "content": [{
-            "type": "text/plain",
+            "type": "text/html",
             "value": body
         }]
     }
@@ -41,3 +41,6 @@ async def send_email_test():
     await send_email('ranaabashetty@gmail.com', 'Testing', testing_mail_template)
     print('End send mail test')
     
+async def send_token_nearly_exhausted_email():
+    print('Start send token nearly exhausted email')
+    await send_email('tailer.resume.co@gmail.com', 'Warning: Your Groq API token is near to exhaust', TOKEN_NEARLY_EXHAUSTED)
