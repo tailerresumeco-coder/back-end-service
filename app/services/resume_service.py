@@ -9,8 +9,8 @@ import os
 from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
-from app.services.mail_service import send_email_test
-from app.services.token_service import get_active_apikey
+from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email
+from app.services.token_service import get_active_apikey, update_token_obj
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -180,18 +180,6 @@ async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
-    """
-    Tailor resume using Groq API with PROMPT_9.
-    Simple, no retries - let it fail fast so we collect real data.
-    
-    Args:
-        resume_content: Raw resume text
-        jd_text: Job description text
-    
-    Returns:
-        Dict with status, data, and metadata
-    """
-    
     # Prepare the prompt by replacing placeholders
     prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
@@ -234,10 +222,13 @@ async def tailor_resume_groq(
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        # groq_collection = groq_tokens_collection.insert_one(
-        #     {"token": 'mnbvcxzl_token', "count": 1, "tokens": 20,}
-        # )
-        print('completion', completion)
+        token_record = await groq_tokens_collection.find_one({"apikey": await get_active_apikey()})
+        groq_collection = await update_token_obj(await get_active_apikey(), tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
+        if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
+            try:
+                await send_token_nearly_exhausted_email()
+            except Exception as e:
+                print("Error sending token nearly exhausted email:", str(e))
         return {
             "status": "success",
             "data": parsed_response,
