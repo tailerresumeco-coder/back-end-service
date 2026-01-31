@@ -5,11 +5,18 @@ import certifi
 MONGO_URI = os.environ["MONGO_URI"]
 DB_NAME = "tailer_resume"
 
-client = AsyncIOMotorClient(
-    MONGO_URI,
-    tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=30000,
-)
+
+if MONGO_URI.startswith("mongodb+srv://"):
+    client = AsyncIOMotorClient(
+        MONGO_URI,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=30000,
+    )
+else:
+    client = AsyncIOMotorClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=30000,
+    )
 
 db = client[DB_NAME]
 

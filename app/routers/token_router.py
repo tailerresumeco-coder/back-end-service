@@ -1,8 +1,14 @@
-from fastapi import APIRouter
-from app.db import groq_tokens_collection
+from fastapi import APIRouter, HTTPException
 from app.models.token_request import TokenRequest
 from app.models.token_active_request import TokenActiveRequest
-
+from app.services.token_service import (
+    get_all_tokens,
+    set_apikey_active,
+    add_apikey,
+    delete_apikey,
+    update_token_obj
+)
+from bson import ObjectId
 
 router = APIRouter(
     prefix="/resume",
@@ -11,41 +17,37 @@ router = APIRouter(
 
 @router.post("/token/save")
 async def save_token(request: TokenRequest):
-    data = {
-        "apikey": request.apikey,
-        "token": request.tokens,
-        "requests": request.requests,
-        "active": request.active
-    }
+    print('Begin token_router.py -> save_token()')
+    result = await add_apikey(
+        apikey=request.apikey,
+        name=request.name,
+        tokens=request.tokens,
+        requests=request.requests,
+    )
 
-    groq_tokens_collection.insert_one(data)
-
-    return {
-        "message": "Token saved successfully",
-        "status": "SUCCESS"
-    }
-
+    return result
 
 @router.get("/tokens")
 async def get_tokens():
-    tokens = await groq_tokens_collection.find().to_list(length=100)
+    print('Begin token_router.py -> get_tokens()')
+    return await get_all_tokens()
 
-    for token in tokens:
-        token["_id"] = str(token["_id"])
-
-    return tokens
-
-@router.patch("/token/activate")
-async def set_active_token(request: TokenActiveRequest):
-    result = await groq_tokens_collection.update_one(
-        {"apikey": request.apikey},
-        {"$set": {"active": request.active}}
+@router.patch("/token/update")
+async def update_token(request: TokenRequest):
+    result = await update_token_obj(
+        apikey=request.apikey,
+        active=request.active,
+        tokens=request.tokens,
+        requests=request.requests
     )
 
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Token not found")
+    return result
 
-    return {
-        "message": "Token updated successfully",
-        "status": "SUCCESS"
-    }
+@router.patch("/token/activate")
+async def activate_token(request: TokenActiveRequest):
+    return await set_apikey_active(request.apikey)
+
+@router.delete("/token/delete/{id}")
+async def remove_token(id: str):
+    print('Begin token_router.py -> remove_token()')
+    return await delete_apikey(ObjectId(id))

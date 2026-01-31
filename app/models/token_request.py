@@ -5,3 +5,4 @@ class TokenRequest(BaseModel):
     tokens: int
     requests:int
     active: bool
+    name: str
