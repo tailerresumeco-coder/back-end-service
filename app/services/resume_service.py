@@ -9,7 +9,7 @@ import os
 from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
-from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email
+from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email, tailored_notify_email
 from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
 
 load_dotenv()
@@ -238,6 +238,7 @@ async def tailor_resume_groq(
                 await send_token_nearly_exhausted_email()
             except Exception as e:
                 print("Error sending token nearly exhausted email:", str(e))
+        await tailored_notify_email(parsed_response["basic"]["name"], parsed_response["basic"]["email"])
         return {
             "status": "success",
             "data": parsed_response,
