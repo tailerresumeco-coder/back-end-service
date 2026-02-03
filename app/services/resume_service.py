@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
 from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email
-from app.services.token_service import get_active_apikey, update_token_obj, add_user_details
+from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -226,10 +226,11 @@ async def tailor_resume_groq(
         active_api_key = await get_active_apikey()
         token_record = await groq_tokens_collection.find_one({"apikey": active_api_key})
         groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
-        await add_user_details(
+        
+        await add_user_or_handle_existing(
             email=parsed_response["basic"]["email"],
             name=parsed_response["basic"]["name"],
-            phone=parsed_response["basic"]["phone"]
+            phone=parsed_response["basic"]["phone"],
         )
         
         if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
