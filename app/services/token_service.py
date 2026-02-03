@@ -91,17 +91,33 @@ async def add_user_details(email="", name="", phone=""):
         user = await get_user_details(email)
         if not user:
             result = await users_collection.insert_one(
-                {"name": name, "email": email, "phone": phone}
+                {"name": name, "email": email, "phone": phone, "count": 0}
             )
             print(f"User added with id: {result.inserted_id}")
         else:
             print("User already exists.")
     except Exception as e:
         print(f"Error adding user: {e}")
-
+        
+async def add_user_or_handle_existing(email: str, name: str, phone: str):
+    user = await get_user_details(email)
+    if not user:
+        await users_collection.insert_one(
+            {"name": name, "email": email, "phone": phone, "count": 0}
+        )
+    else:
+        await users_collection.update_one({"email": email}, {"$set": {"count": user['count'] + 1}})
 
 async def get_user_details(email: str):
     user = await users_collection.find_one({"email": email})
     if user:
         user["_id"] = str(user["_id"])
     return user
+
+async def make_all_tokens_count_zero():
+    print('Setting all user token counts to zero.')
+    result = await users_collection.update_many(
+        {},  # Update all documents
+        {"$set": {"count": 0}}
+    )
+    return result.modified_count
