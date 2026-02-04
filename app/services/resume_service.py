@@ -186,6 +186,9 @@ async def tailor_resume_groq(
                 "error": str(json_error),
                 "raw_response": response_text[:500]  # First 500 chars for debugging
             }
+            
+        parsed_response['ats_score']['before_tailoring'] = (parsed_response['before_tailoring_jd_keywords']/parsed_response['total_jd_keywords'])*100
+        parsed_response['ats_score']['after_tailoring'] = (parsed_response['after_tailoring_jd_keywords']/parsed_response['total_jd_keywords'])*100
         
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))

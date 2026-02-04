@@ -200,7 +200,7 @@ tailored_content.experience: List every job from the resume. For each job, keep 
 
 tailored_content.skills: Categorize every technical skill mentioned in the original resume. Add relevant keywords from the JD into the appropriate categories.
 
-Calculate before_tailoring (keywords_in_JD/Keywords_matched_in_input) and after_tailoring scores (keywords_in_JD/Keywords_matched_in_output) by rounded percentages.
+Calculate before_tailoring and after_tailoring scores by rounded percentages.
 
 Every input bullet must have an improved output bullet.
 
@@ -293,7 +293,10 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
     ],
     "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
     "keywords_injected": ["keyword1", "keyword2"]
-  }
+  },
+  before_tailoring_jd_keywords: number_of_matched_keywords_in_original_resume,
+  after_tailoring_jd_keywords: number_of_matched_keywords_in_tailored_resume,
+  total_jd_keywords: total_unique_keywords_in_jd
 }
 
 RESUME:
