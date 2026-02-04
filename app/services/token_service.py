@@ -115,7 +115,7 @@ async def get_user_details(email: str):
     return user
 
 async def make_all_tokens_count_zero():
-    print('Setting all user token counts to zero.')
+    print('Setting all user token counts to zero...')
     result = await users_collection.update_many(
         {},  # Update all documents
         {"$set": {"tokens": 0}}
