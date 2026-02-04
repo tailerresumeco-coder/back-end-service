@@ -116,8 +116,8 @@ async def get_user_details(email: str):
 
 async def make_all_tokens_count_zero():
     print('Setting all user token counts to zero...')
-    result = await users_collection.update_many(
-        {},  # Update all documents
+    result = await groq_tokens_collection.update_many(
+        {},
         {"$set": {"tokens": 0}}
     )
     return result.modified_count
