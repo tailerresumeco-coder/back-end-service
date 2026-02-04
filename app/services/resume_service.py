@@ -46,13 +46,6 @@ async def upload_resume(payload: Dict[str, Any]):
     return "Resume uploaded successfully"
 
 async def download_resume(html: str, filename: str):
-    
-    try:
-        email_res = await send_email_test()
-        print(email_res)
-    except:
-        print('error in send_email_test()')
-
     html_document = f"""
     <html>
       <head>
@@ -93,12 +86,6 @@ async def download_resume(html: str, filename: str):
     """
 
     pdf_bytes = HTML(string=html_document).write_pdf()
-
-    # is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
-    # if not is_groq_exists:
-    #     await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
-    # else:
-    #     await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -133,37 +120,19 @@ async def tailer_resume(resume_content, jd_text):
         raise HTTPException(status_code=500, detail=str(e))
 
 async def get_groq_client() -> Groq:
-    """Initialize Groq client with API key from .env"""
-    # groq_api_key = os.getenv("GROQ_API_KEY")
     groq_api_key = await get_active_apikey()
-    print("api key",groq_api_key)
     if not groq_api_key:
         raise ValueError("GROQ_API_KEY not found in .env file")
-    
     return Groq(api_key=groq_api_key)
 
 def extract_json(text: str) -> Dict[str, Any]:
-    """
-    Extract and parse JSON from LLM response.
-    Handles markdown formatting and cleaning.
-    
-    Args:
-        text: Raw response from Groq API
-        
-    Returns:
-        Parsed JSON dictionary
-        
-    Raises:
-        ValueError: If no valid JSON found in response
-    """
+   
     try:
-        # Remove markdown code blocks if present
         text = text.strip()
         if text.startswith('```'):
             text = re.sub(r'^```(?:json)?\n?', '', text)
             text = re.sub(r'\n?```$', '', text)
         
-        # Find JSON boundaries
         start_idx = text.find('{')
         end_idx = text.rfind('}')
         
@@ -180,7 +149,6 @@ async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
-    # Prepare the prompt by replacing placeholders
     prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
