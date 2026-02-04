@@ -118,6 +118,6 @@ async def make_all_tokens_count_zero():
     print('Setting all user token counts to zero.')
     result = await users_collection.update_many(
         {},  # Update all documents
-        {"$set": {"count": 0}}
+        {"$set": {"tokens": 0}}
     )
     return result.modified_count

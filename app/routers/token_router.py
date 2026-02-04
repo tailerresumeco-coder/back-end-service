@@ -55,5 +55,6 @@ async def remove_token(id: str):
 
 @router.get("/token/reset-groq-token-counts")
 async def reset_groq_token_counts():
+    print('Begin token_router.py -> reset_groq_token_counts()')
     result = await make_all_tokens_count_zero()
     return {"message": f"Reset {result} user token counts to zero"}
