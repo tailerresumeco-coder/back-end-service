@@ -204,6 +204,8 @@ Calculate before_tailoring and after_tailoring scores by rounded percentages.
 
 Every input bullet must have an improved output bullet.
 
+The output should be in JSON format adhering to the schema below.
+
 _validation: Use this to double-check that the output_bullet_count is equal to or greater than the input_bullet_count.
 ## JSON SCHEMA
 
@@ -294,9 +296,9 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
     "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
     "keywords_injected": ["keyword1", "keyword2"]
   },
-  before_tailoring_jd_keywords: number_of_matched_keywords_in_original_resume,
-  after_tailoring_jd_keywords: number_of_matched_keywords_in_tailored_resume,
-  total_jd_keywords: total_unique_keywords_in_jd
+  "before_tailoring_jd_keywords": "number_of_matched_keywords_in_original_resume",
+  "after_tailoring_jd_keywords": "number_of_matched_keywords_in_tailored_resume",
+  "total_jd_keywords": "total_unique_keywords_in_jd"
 }
 
 RESUME:
