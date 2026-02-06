@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from app.db import resumes_collection, groq_tokens_collection
+from app.db import resumes_collection, groq_tokens_collection, feedback_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
 from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0
@@ -14,7 +14,7 @@ from app.services.token_service import get_active_apikey, update_token_obj, add_
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
-import io
+from datetime import datetime
 from weasyprint import HTML
 
 def get_openai_client():
@@ -44,6 +44,17 @@ def extract_json(text):
 async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
+
+async def feedback(liked: bool, unLiked: bool, message: str):
+    print('Begin resume_service.py -> feedback()')
+    await feedback_collection.insert_one({
+        "liked": liked,
+        "unLiked": unLiked,
+        "message": message,
+        "createdOn": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    print('End resume_service.py -> feedback()')
+    return {"message": "Feedback received successfully"}
 
 async def download_resume(html: str, filename: str):
     html_document = f"""
