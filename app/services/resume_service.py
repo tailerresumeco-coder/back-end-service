@@ -48,12 +48,14 @@ async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
 
-async def feedback(liked: bool, unLiked: bool, message: str):
+async def feedback(liked: bool, unLiked: bool, message: str, email: str, name: str):
     print('Begin resume_service.py -> feedback()')
     await feedback_collection.insert_one({
         "liked": liked,
         "unLiked": unLiked,
         "message": message,
+        "email": email,
+        "name": name,
         "createdOn": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
     print('End resume_service.py -> feedback()')

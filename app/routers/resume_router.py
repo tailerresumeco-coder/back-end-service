@@ -44,7 +44,7 @@ async def download_resume(payload: DownloadResumeRequestModel):
 @router.post("/feedback")
 async def feedback(payload: FeedbackModel):
     print('Begin resume_router.py -> feedback()')
-    await feedback_service(payload.liked, payload.unLiked, payload.message)
+    await feedback_service(payload.liked, payload.unLiked, payload.message, payload.email, payload.name)
     print('End resume_router.py -> feedback()')
     return {"message": "Feedback received successfully"}
 
