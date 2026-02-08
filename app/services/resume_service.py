@@ -11,6 +11,7 @@ from groq import Groq
 from dotenv import load_dotenv
 from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email, tailored_notify_email
 from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
+import io
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -57,54 +58,58 @@ async def feedback(liked: bool, unLiked: bool, message: str):
     return {"message": "Feedback received successfully"}
 
 async def download_resume(html: str, filename: str):
-    html_document = f"""
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-  @page {{
-            size: A4;
-            margin: 10mm 12mm;   /* top/bottom left/right */
-          }}
+    print('Begin resume_service.py -> download_resume()')
+    try:
+        html_document = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+    @page {{
+                size: A4;
+                margin: 10mm 12mm;   /* top/bottom left/right */
+            }}
 
-          /* RESET BROWSER DEFAULTS */
-          html, body {{
-            margin: 0;
-            padding: 0;
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000;
-          }}
+            /* RESET BROWSER DEFAULTS */
+            html, body {{
+                margin: 0;
+                padding: 0;
+                font-family: Calibri, Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+            }}
 
-          /* REMOVE PREVIEW STYLES */
-          .main-container {{
-            min-height: auto !important;
-            transform: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }}
+            /* REMOVE PREVIEW STYLES */
+            .main-container {{
+                min-height: auto !important;
+                transform: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
 
-          .section {{
-            page-break-inside: avoid;
-          }}
-        </style>
-      </head>
-      <body>
-        {html}
-      </body>
-    </html>
-    """
+            .section {{
+                page-break-inside: avoid;
+            }}
+            </style>
+        </head>
+        <body>
+            {html}
+        </body>
+        </html>
+        """
 
-    pdf_bytes = HTML(string=html_document).write_pdf()
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
-    )
+        pdf_bytes = HTML(string=html_document).write_pdf()
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
 
 async def tailer_resume(resume_content, jd_text):
     try:
