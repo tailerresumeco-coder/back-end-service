@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email, tailored_notify_email
 from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
 import io
+from app.services.s3_service import upload_file_to_s3
+import base64
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -57,7 +59,7 @@ async def feedback(liked: bool, unLiked: bool, message: str):
     print('End resume_service.py -> feedback()')
     return {"message": "Feedback received successfully"}
 
-async def download_resume(html: str, filename: str):
+async def download_resume(html: str, filename: str, response_type: str = "pdf"):
     print('Begin resume_service.py -> download_resume()')
     try:
         html_document = f"""
@@ -100,6 +102,9 @@ async def download_resume(html: str, filename: str):
         """
 
         pdf_bytes = HTML(string=html_document).write_pdf()
+        
+        if response_type == 'pdf':
+            return pdf_bytes
         
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
@@ -274,3 +279,29 @@ async def tailor_resume_groq(
             "message": "Error processing resume with AI service",
             "error": str(e)
         }
+        
+async def store_resumes(input_resume, output_resume, email):
+    try:
+        print("Begin resume_service.py -> store_resumes()")
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        input_filename = f"{email}_{timestamp}/{email}_input_{timestamp}.pdf"
+        output_filename = f"{email}_{timestamp}/{email}_output_{timestamp}.pdf"
+        input_resume = decode_base64_pdf(input_resume)
+        output_resume = await download_resume(output_resume, output_filename, 'pdf')
+        path = f'{email}_{timestamp}'
+        upload_file_to_s3(input_resume, 'io-resumes', input_filename)
+        upload_file_to_s3(output_resume, 'io-resumes', output_filename)
+    except Exception as e:
+        print(f"Error in store_resumes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error storing resumes: {str(e)}")
+    
+def decode_base64_pdf(base64_str: str) -> bytes:
+    if "," in base64_str:
+        base64_str = base64_str.split(",")[1]
+
+    pdf_bytes = base64.b64decode(base64_str, validate=True)
+
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("Invalid PDF")
+
+    return pdf_bytes

@@ -4,6 +4,8 @@ from app.services.resume_service import upload_resume as upload_resume_service, 
 from app.models.tailer_resume_request import TailerResumeRequestModel, TailerResumeRequestModelV2
 from app.models.download_resume_request import DownloadResumeRequestModel
 from app.models.feedback_model import FeedbackModel
+from app.services.resume_service import store_resumes as store_resumes_service
+from app.models.store_resumes_request import StoreResumesRequest
 
 router = APIRouter(
     prefix="/resume",
@@ -35,7 +37,7 @@ async def tailer_resume_legacy(payload: TailerResumeRequestModel):
 @router.post("/download-pdf")
 async def download_resume(payload: DownloadResumeRequestModel):
     print('Begin resume_router.py -> download_resume()')
-    response = await download_resume_service(payload.html, payload.filename)
+    response = await download_resume_service(payload.html, payload.filename, 'stream')
     print('End resume_router.py -> download_resume()')
     return response
 
@@ -45,3 +47,18 @@ async def feedback(payload: FeedbackModel):
     await feedback_service(payload.liked, payload.unLiked, payload.message)
     print('End resume_router.py -> feedback()')
     return {"message": "Feedback received successfully"}
+
+@router.post("/store-resumes")
+async def store_resumes(payload: StoreResumesRequest):
+    print("Begin resume_router.py -> store_resumes()")
+    try:
+        if not payload.email:
+            raise HTTPException(status_code=400, detail="Email is required to store resumes")
+        if not payload.input_resume or not payload.output_resume:
+            raise HTTPException(status_code=400, detail="Both input and output resumes are required")
+        await store_resumes_service(payload.input_resume, payload.output_resume, payload.email)
+        return {
+            "message": "Resumes stored successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error storing resumes: {str(e)}")

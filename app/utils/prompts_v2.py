@@ -296,8 +296,8 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
     "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
     "keywords_injected": ["keyword1", "keyword2"]
   },
-  "before_tailoring_jd_keywords": "number_of_matched_keywords_in_original_resume",
-  "after_tailoring_jd_keywords": "number_of_matched_keywords_in_tailored_resume",
+  "before_tailoring_jd_keywords": "number_of_matched_keywords_in_original_resume_matched with_jd",
+  "after_tailoring_jd_keywords": "number_of_matched_keywords_in_tailored_resume_matched with_jd_that_you_have_added",
   "total_jd_keywords": "total_unique_keywords_in_jd"
 }
 
