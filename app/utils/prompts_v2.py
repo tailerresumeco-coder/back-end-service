@@ -12,12 +12,15 @@ RESUME_TAILOR_PROMPT0 = """You are an ATS resume parser and optimizer. Extract A
 - Every skill mentioned MUST be extracted
 - Every project MUST be captured
 - Every certification MUST be listed
+- Every internship MUST be captured
+- Every award/honor MUST be listed
+- Every language MUST be listed
 - COUNT all bullets and verify: output_bullets >= input_bullets
 
 ### 2. NO FABRICATION
 - NEVER add skills not in resume
 - NEVER invent metrics ("improved by 40%")
-- NEVER add fake certifications or experiences
+- NEVER add fake certifications, experiences, or awards
 - Missing JD skills go in gap_analysis ONLY
 
 ### 3. TAILORING ALLOWED
@@ -32,14 +35,30 @@ RESUME_TAILOR_PROMPT0 = """You are an ATS resume parser and optimizer. Extract A
 - Each project has: project_name, duration, technologies, responsibilities
 - Use "role" field, duration in "MMM YYYY – MMM YYYY" format
 
-### 5. PROJECT CLASSIFICATION (STRICT - NO DUPLICATES)
+### 5. INTERNSHIPS STRUCTURE (Similar to Experience)
+- Extract all internships separately from work experience
+- Each internship has: role, company, location, duration, responsibilities/highlights
+- Tailor internship bullets using JD keywords (if truthful)
+- Internships should be distinct from full-time work experience
+
+### 6. AWARDS & HONORS STRUCTURE
+- Extract all awards, honors, recognitions, achievements
+- Each award has: title, issuer/organization, date, description
+- Include academic awards, work recognitions, competition wins, certifications of achievement
+
+### 7. LANGUAGES STRUCTURE
+- Extract all languages mentioned
+- Each language has: language name, proficiency level (e.g., Native, Fluent, Professional, Conversational, Basic)
+- Include programming languages in skills section, NOT here
+
+### 8. PROJECT CLASSIFICATION (STRICT - NO DUPLICATES)
 - Experience section: ONLY work projects done at a company (part of job responsibilities)
 - Projects section: ONLY personal, academic, side projects, or hackathon projects (NOT done at any employer)
 - A project MUST appear in ONE section ONLY - NEVER IN BOTH
 - If a project is mentioned under work experience (company/employer), DO NOT add it to the projects section
 - If a project has no associated company/employer, it goes in projects section only
 
-### 6. SKILLS EXTRACTION
+### 9. SKILLS EXTRACTION
 Extract ALL skills from resume and organize into DYNAMIC categories based on actual content.
 Create categories that best represent the resume's skills (examples below, but use what fits):
 - Languages: Java, Python, JavaScript, TypeScript, SQL
@@ -52,7 +71,7 @@ Create categories that best represent the resume's skills (examples below, but u
 IMPORTANT: Create as many or as few categories as needed based on the resume content.
 Each category should have at least 2-3 items. Combine sparse categories if needed.
 
-### 7. CHANGE TRACKING
+### 10. CHANGE TRACKING
 For transparency, document all modifications made during tailoring:
 - Track which bullets were rephrased and why
 - List keywords injected from JD into content
@@ -106,6 +125,15 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
         ]
       }
     ],
+    "internships": [
+      {
+        "role": "",
+        "company": "",
+        "location": "",
+        "duration": "",
+        "responsibilities": []
+      }
+    ],
     "education": [
       {
         "institution": "",
@@ -132,6 +160,20 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
       }
     ],
     "certifications": [],
+    "awards": [
+      {
+        "title": "",
+        "issuer": "",
+        "date": "",
+        "description": ""
+      }
+    ],
+    "languages": [
+      {
+        "language": "",
+        "proficiency": ""
+      }
+    ],
     "highlight_keywords": []
   },
   "_validation": {
@@ -148,6 +190,12 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
         "changes": ["Rephrased bullet to include keyword X", "Strengthened action verb from Y to Z"]
       }
     ],
+    "internship_modifications": [
+      {
+        "company": "Company Name",
+        "changes": ["Rephrased bullet to include keyword X"]
+      }
+    ],
     "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
     "keywords_injected": ["keyword1", "keyword2"]
   }
@@ -158,6 +206,8 @@ Score = (Matched JD Keywords / Total JD Keywords) × 100
 ☐ output_bullet_count >= input_bullet_count
 ☐ No skills added that weren't in resume
 ☐ Missing JD skills are in gap_analysis only
+☐ Internships extracted separately from work experience
+☐ Awards and languages captured if present
 ☐ change_summary accurately reflects all modifications made
 
 Return ONLY valid JSON. No markdown.
@@ -168,6 +218,8 @@ RESUME:
 JOB DESCRIPTION:
 {{JOB_DESCRIPTION}}
 """
+
+
 
 
 
@@ -197,6 +249,12 @@ Case Sensitivity: The highlight_keywords list must be case-sensitive and strictl
 Instructions for JSON Fields:
 
 tailored_content.experience: List every job from the resume. For each job, keep the original achievements but rewrite them to use action verbs and keywords from the JD. Ensure the bullet count for each role does not decrease.
+
+tailored_content.internships: List every internship from the resume. Tailor the responsibilities using JD keywords. Keep all original details.
+
+tailored_content.awards: List all awards, honors, and recognitions. Preserve all original information.
+
+tailored_content.languages: List all languages with proficiency levels. Preserve all original information.
 
 tailored_content.skills: Categorize every technical skill mentioned in the original resume. Add relevant keywords from the JD into the appropriate categories.
 
@@ -249,6 +307,15 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
         ]
       }
     ],
+    "internships": [
+      {
+        "role": "",
+        "company": "",
+        "location": "",
+        "duration": "",
+        "responsibilities": []
+      }
+    ],
     "education": [
       {
         "institution": "",
@@ -275,6 +342,20 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
       }
     ],
     "certifications": [],
+    "awards": [
+      {
+        "title": "",
+        "issuer": "",
+        "date": "",
+        "description": ""
+      }
+    ],
+    "languages": [
+      {
+        "language": "",
+        "proficiency": ""
+      }
+    ],
     "highlight_keywords": []
   },
   "_validation": {
@@ -289,6 +370,12 @@ _validation: Use this to double-check that the output_bullet_count is equal to o
       {
         "company": "Company Name",
         "changes": ["Rephrased bullet to include keyword X", "Strengthened action verb from Y to Z"]
+      }
+    ],
+    "internship_modifications": [
+      {
+        "company": "Company Name",
+        "changes": ["Rephrased bullet to include keyword X"]
       }
     ],
     "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
