@@ -6,7 +6,8 @@ from app.services.token_service import (
     set_apikey_active,
     add_apikey,
     delete_apikey,
-    update_token_obj
+    update_token_obj,
+    make_all_tokens_count_zero,
 )
 from bson import ObjectId
 
@@ -51,3 +52,9 @@ async def activate_token(request: TokenActiveRequest):
 async def remove_token(id: str):
     print('Begin token_router.py -> remove_token()')
     return await delete_apikey(ObjectId(id))
+
+@router.get("/token/reset-groq-token-counts")
+async def reset_groq_token_counts():
+    print('Begin token_router.py -> reset_groq_token_counts()')
+    result = await make_all_tokens_count_zero()
+    return {"message": f"Reset {result} user token counts to zero"}

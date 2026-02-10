@@ -11,3 +11,4 @@ apscheduler
 httpx
 certifi
 dnspython
+boto3

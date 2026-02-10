@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from app.db import resumes_collection, groq_tokens_collection
+from app.db import resumes_collection, groq_tokens_collection, feedback_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
 from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0
@@ -9,12 +9,15 @@ import os
 from fastapi import HTTPException
 from groq import Groq
 from dotenv import load_dotenv
-from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email
-from app.services.token_service import get_active_apikey, update_token_obj, add_user_details
+from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email, tailored_notify_email
+from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
+import io
+from app.services.s3_service import upload_file_to_s3
+import base64
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
-import io
+from datetime import datetime
 from weasyprint import HTML
 
 def get_openai_client():
@@ -45,68 +48,75 @@ async def upload_resume(payload: Dict[str, Any]):
     db_response = await resumes_collection.insert_one(payload)
     return "Resume uploaded successfully"
 
-async def download_resume(html: str, filename: str):
-    
+async def feedback(liked: bool, unLiked: bool, message: str, email: str, name: str):
+    print('Begin resume_service.py -> feedback()')
+    await feedback_collection.insert_one({
+        "liked": liked,
+        "unLiked": unLiked,
+        "message": message,
+        "email": email,
+        "name": name,
+        "createdOn": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    print('End resume_service.py -> feedback()')
+    return {"message": "Feedback received successfully"}
+
+async def download_resume(html: str, filename: str, response_type: str = "pdf"):
+    print('Begin resume_service.py -> download_resume()')
     try:
-        email_res = await send_email_test()
-        print(email_res)
-    except:
-        print('error in send_email_test()')
+        html_document = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+    @page {{
+                size: A4;
+                margin: 10mm 12mm;   /* top/bottom left/right */
+            }}
 
-    html_document = f"""
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-  @page {{
-            size: A4;
-            margin: 10mm 12mm;   /* top/bottom left/right */
-          }}
+            /* RESET BROWSER DEFAULTS */
+            html, body {{
+                margin: 0;
+                padding: 0;
+                font-family: Calibri, Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+            }}
 
-          /* RESET BROWSER DEFAULTS */
-          html, body {{
-            margin: 0;
-            padding: 0;
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000;
-          }}
+            /* REMOVE PREVIEW STYLES */
+            .main-container {{
+                min-height: auto !important;
+                transform: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
 
-          /* REMOVE PREVIEW STYLES */
-          .main-container {{
-            min-height: auto !important;
-            transform: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }}
+            .section {{
+                page-break-inside: avoid;
+            }}
+            </style>
+        </head>
+        <body>
+            {html}
+        </body>
+        </html>
+        """
 
-          .section {{
-            page-break-inside: avoid;
-          }}
-        </style>
-      </head>
-      <body>
-        {html}
-      </body>
-    </html>
-    """
-
-    pdf_bytes = HTML(string=html_document).write_pdf()
-
-    # is_groq_exists = await groq_tokens_collection.find_one({"access_token": os.getenv("GROQ_API_KEY")})
-    # if not is_groq_exists:
-    #     await groq_tokens_collection.insert_one({"access_token": os.getenv("GROQ_API_KEY"), "download_count": 1})
-    # else:
-    #     await groq_tokens_collection.update_one({"access_token": os.getenv("GROQ_API_KEY")}, {"$set": {"download_count": is_groq_exists.get("download_count") + 1}})
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
-    )
+        pdf_bytes = HTML(string=html_document).write_pdf()
+        
+        if response_type == 'pdf':
+            return pdf_bytes
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
 
 async def tailer_resume(resume_content, jd_text):
     try:
@@ -133,37 +143,19 @@ async def tailer_resume(resume_content, jd_text):
         raise HTTPException(status_code=500, detail=str(e))
 
 async def get_groq_client() -> Groq:
-    """Initialize Groq client with API key from .env"""
-    # groq_api_key = os.getenv("GROQ_API_KEY")
     groq_api_key = await get_active_apikey()
-    print("api key",groq_api_key)
     if not groq_api_key:
         raise ValueError("GROQ_API_KEY not found in .env file")
-    
     return Groq(api_key=groq_api_key)
 
 def extract_json(text: str) -> Dict[str, Any]:
-    """
-    Extract and parse JSON from LLM response.
-    Handles markdown formatting and cleaning.
-    
-    Args:
-        text: Raw response from Groq API
-        
-    Returns:
-        Parsed JSON dictionary
-        
-    Raises:
-        ValueError: If no valid JSON found in response
-    """
+   
     try:
-        # Remove markdown code blocks if present
         text = text.strip()
         if text.startswith('```'):
             text = re.sub(r'^```(?:json)?\n?', '', text)
             text = re.sub(r'\n?```$', '', text)
         
-        # Find JSON boundaries
         start_idx = text.find('{')
         end_idx = text.rfind('}')
         
@@ -180,7 +172,6 @@ async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
-    # Prepare the prompt by replacing placeholders
     prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
@@ -218,6 +209,9 @@ async def tailor_resume_groq(
                 "error": str(json_error),
                 "raw_response": response_text[:500]  # First 500 chars for debugging
             }
+            
+        # parsed_response['ats_score']['before_tailoring'] = round(parsed_response['before_tailoring_jd_keywords']/parsed_response['total_jd_keywords']*100) if parsed_response['total_jd_keywords'] > 0 else 0
+        # parsed_response['ats_score']['after_tailoring'] = round(parsed_response['after_tailoring_jd_keywords']/parsed_response['total_jd_keywords']*100) if parsed_response['total_jd_keywords'] > 0 else 0
         
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
@@ -226,10 +220,11 @@ async def tailor_resume_groq(
         active_api_key = await get_active_apikey()
         token_record = await groq_tokens_collection.find_one({"apikey": active_api_key})
         groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
-        await add_user_details(
+        
+        await add_user_or_handle_existing(
             email=parsed_response["basic"]["email"],
             name=parsed_response["basic"]["name"],
-            phone=parsed_response["basic"]["phone"]
+            phone=parsed_response["basic"]["phone"],
         )
         
         if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
@@ -237,6 +232,7 @@ async def tailor_resume_groq(
                 await send_token_nearly_exhausted_email()
             except Exception as e:
                 print("Error sending token nearly exhausted email:", str(e))
+        await tailored_notify_email(parsed_response["basic"]["name"], parsed_response["basic"]["email"])
         return {
             "status": "success",
             "data": parsed_response,
@@ -285,3 +281,29 @@ async def tailor_resume_groq(
             "message": "Error processing resume with AI service",
             "error": str(e)
         }
+        
+async def store_resumes(input_resume, output_resume, email):
+    try:
+        print("Begin resume_service.py -> store_resumes()")
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        input_filename = f"{email}_{timestamp}/{email}_input_{timestamp}.pdf"
+        output_filename = f"{email}_{timestamp}/{email}_output_{timestamp}.pdf"
+        input_resume = decode_base64_pdf(input_resume)
+        output_resume = await download_resume(output_resume, output_filename, 'pdf')
+        path = f'{email}_{timestamp}'
+        upload_file_to_s3(input_resume, 'io-resumes', input_filename)
+        upload_file_to_s3(output_resume, 'io-resumes', output_filename)
+    except Exception as e:
+        print(f"Error in store_resumes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error storing resumes: {str(e)}")
+    
+def decode_base64_pdf(base64_str: str) -> bytes:
+    if "," in base64_str:
+        base64_str = base64_str.split(",")[1]
+
+    pdf_bytes = base64.b64decode(base64_str, validate=True)
+
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise ValueError("Invalid PDF")
+
+    return pdf_bytes
