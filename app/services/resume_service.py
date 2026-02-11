@@ -14,6 +14,8 @@ from app.services.token_service import get_active_apikey, update_token_obj, add_
 import io
 from app.services.s3_service import upload_file_to_s3
 import base64
+from io import BytesIO
+import pdfplumber
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -167,11 +169,25 @@ def extract_json(text: str) -> Dict[str, Any]:
     
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in response: {str(e)}")
+    
+async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+    try:
+        extracted_text = ""
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            for page_number, page in enumerate(pdf.pages, start=1):
+                page_text = page.extract_text()
+                if page_text:
+                    extracted_text += page_text
 
+        return extracted_text
+    except Exception as e:
+        raise ValueError(f"Error extracting text from PDF: {str(e)}")
+    
 async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
+    resume_content = await extract_text_from_pdf(decode_base64_pdf(resume_content))
     prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     

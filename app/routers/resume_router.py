@@ -25,10 +25,6 @@ async def upload_resume(payload: Dict[str, Any]):
 
 @router.post("/tailer-resume-legacy")
 async def tailer_resume_legacy(payload: TailerResumeRequestModel):
-    """
-    Legacy endpoint - uses original single-prompt processing.
-    Kept for backward compatibility and A/B testing.
-    """
     print('Begin resume_router.py -> tailer_resume_legacy()')
     response = await tailor_resume_groq(payload.resume, payload.jd)
     print('End resume_router.py -> tailer_resume_legacy()')
