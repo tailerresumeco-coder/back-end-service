@@ -286,8 +286,8 @@ async def store_resumes(input_resume, output_resume, email):
     try:
         print("Begin resume_service.py -> store_resumes()")
         timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-        input_filename = f"{email}_{timestamp}/{email}_input_{timestamp}.pdf"
-        output_filename = f"{email}_{timestamp}/{email}_output_{timestamp}.pdf"
+        input_filename = f"{email}/{email}_input_{timestamp}.pdf"
+        output_filename = f"{email}/{email}_output_{timestamp}.pdf"
         input_resume = decode_base64_pdf(input_resume)
         output_resume = await download_resume(output_resume, output_filename, 'pdf')
         path = f'{email}_{timestamp}'
