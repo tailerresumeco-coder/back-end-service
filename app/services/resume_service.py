@@ -183,11 +183,26 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     except Exception as e:
         raise ValueError(f"Error extracting text from PDF: {str(e)}")
     
+async def extract_text_from_docx(docx_bytes: bytes) -> str:
+    try:
+        from docx import Document
+        document = Document(BytesIO(docx_bytes))
+        extracted_text = "\n".join([para.text for para in document.paragraphs])
+        return extracted_text
+    except Exception as e:
+        raise ValueError(f"Error extracting text from DOCX: {str(e)}")
+    
 async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
-    resume_content = await extract_text_from_pdf(decode_base64_pdf(resume_content))
+    if (resume_content.startswith("data:application/pdf;base64,")):
+        print("Detected PDF resume format")
+        resume_content = await extract_text_from_pdf(decode_base64_pdf(resume_content))
+    else:
+        print("Detected DOCX resume format")
+        resume_content = await extract_text_from_docx(decode_base64_docx(resume_content))
+        
     prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
@@ -323,3 +338,15 @@ def decode_base64_pdf(base64_str: str) -> bytes:
         raise ValueError("Invalid PDF")
 
     return pdf_bytes
+
+def decode_base64_docx(base64_str: str) -> bytes:
+    if "," in base64_str:
+        base64_str = base64_str.split(",")[1]
+
+    docx_bytes = base64.b64decode(base64_str, validate=True)
+
+    # DOCX files are ZIP-based (start with PK)
+    if not docx_bytes.startswith(b"PK"):
+        raise ValueError("Invalid DOCX file")
+
+    return docx_bytes
