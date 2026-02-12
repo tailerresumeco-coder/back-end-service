@@ -343,11 +343,11 @@ Instructions for JSON Fields:
 basic: Extract contact information exactly as provided. Ensure all links are valid URLs.
 
 ats_score: 
-- Calculate scores using the formula above
-- Explain improvement came from better presentation, semantic matching, strategic emphasis, and legitimate expansion of existing work
-- For low-content resumes, note that expansion added reasonable details about existing work
-- Be honest about limitations and gaps
-- If score improvement > 35 points, flag for review
+- Gather the total number of unique keywords in the JD (after semantic expansion)
+- Count how many of those keywords appear in the original resume (before tailoring)
+- Count how many appear in the tailored resume (after tailoring)
+- Calculate the score according to the count of the matched keywords divided by total JD keywords, multiplied by 100
+- Provide a detailed explanation of how the score improved through better presentation, semantic matching, strategic emphasis
 
 gap_analysis:
 - missing_technical_skills: Hard skills in JD that DO NOT appear anywhere in resume (be thorough and honest)
@@ -356,22 +356,18 @@ gap_analysis:
 - related_skills_found: Skills in resume that are related/transferable to JD requirements
 
 tailored_content.professional_summary: 
-- 3-4 sentences max highlighting actual experience
-- Lead with years of experience and key role title from resume
-- Include 3-5 keywords from JD that match their actual skills
-- Highlight measurable impact from their actual work
-- Use JD terminology to describe work they actually did
-- Be honest about experience level
+- Rephrase to include 2-3 top JD keywords that match their experience
+- Highlight their strongest relevant skills and experience
 
 tailored_content.experience: 
-- List every job from resume in reverse chronological order
+- List only real job not internships from resume in reverse chronological order not internships
 - PRESERVE EVERY BULLET from the original resume - do not delete any
 - For each role, rewrite bullets using JD terminology but describing the SAME work
 - Each bullet should start with a strong action verb
 - DO NOT add technologies they didn't use
 - DO NOT claim experience they don't have
 - For low-content resumes: Expand each bullet with reasonable details about standard practices for that type of work
-- TARGET: 5-8 bullets per role (expand from 2-3 if needed, never reduce)
+- TARGET: 7-10 bullets per role (expand from 2-3 if needed, never reduce)
 - Add bullets only to elaborate on existing work with JD-relevant framing
 - Expand on responsibilities to highlight relevant aspects using JD keywords
 
@@ -440,6 +436,8 @@ _validation:
 - Set score_improvement_flag to "NORMAL" if improvement is 5-35 points, "LOW" if <5 points, "SUSPICIOUS" if >35 points
 - For low-content resumes, note if expansion was applied
 - List any integrity concerns in integrity_issues array (including "Bullets deleted" if any were omitted)
+- Verify no internship appears in both experience and internships arrays.
+- If duplication detected, set data_integrity_verified to false.
 
 change_summary:
 - Document rephrasing changes (not content additions)
@@ -483,8 +481,8 @@ keyword_analysis:
     }
   },
   "ats_score": {
-    "before_tailoring": 0,
-    "after_tailoring": 0,
+    "before_tailoring": 0, // Count of the number of unique JD keywords that appear in original resume
+    "after_tailoring": 0, // Count of the number of unique JD keywords that appear in tailored resume
     "score_explanation": "Explain how score improved through better presentation, semantic matching, strategic emphasis, and legitimate expansion of existing work. Be honest about remaining gaps."
   },
   "gap_analysis": {
@@ -495,7 +493,7 @@ keyword_analysis:
   },
   "tailored_content": {
     "professional_summary": "",
-    "experience": [
+    "experience": [ // pnly add real jobs, not internships
       {
         "role": "",
         "company": "",
@@ -643,4 +641,8 @@ CRITICAL REMINDERS:
 - Extract internships, awards, and languages if present in resume
 - If sections are missing in resume, return empty arrays for those sections
 
-For low-content resumes: Expand bullets significantly with reasonable details about standard practices for that type of work, but never add technologies or tools not mentioned. Remember: Honest optimization typically yields 10-20 point improvement for normal resumes, 15-30 points for low-content resumes through legitimate expansion."""
+For low-content resumes: Expand bullets significantly with reasonable details about standard practices for that type of work, but never add technologies or tools not mentioned. Remember: Honest optimization typically yields 10-20 point improvement for normal resumes, 15-30 points for low-content resumes through legitimate expansion.
+
+Check the experice section carefuly and if you finnd any role with "Intern" in the title, make sure it is classified as an internship and does not appear in the experience section.
+"""
+
