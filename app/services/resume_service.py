@@ -191,7 +191,53 @@ async def extract_text_from_docx(docx_bytes: bytes) -> str:
         return extracted_text
     except Exception as e:
         raise ValueError(f"Error extracting text from DOCX: {str(e)}")
-    
+
+import re
+
+def clean_cell(text: str) -> str:
+    if not text:
+        return ""
+
+    # Normalize unicode bullets and dashes
+    text = text.replace("•", "-")
+    text = text.replace("–", "-").replace("—", "-")
+
+    # Remove excessive spaces
+    text = re.sub(r"[ \t]+", " ", text)
+
+    # Fix spacing around pipes
+    text = re.sub(r"\s*\|\s*", " | ", text)
+
+    # Fix spacing around hyphens (dates etc.)
+    text = re.sub(r"\s*-\s*", " - ", text)
+
+    # Remove multiple newlines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    # Fix merged bullet issue (like "...TWDTW).• Utilized...")
+    text = re.sub(r"\)\s*-\s*", ")\n- ", text)
+
+    # Split into lines and clean each
+    lines = []
+    seen = set()
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        if not line:
+            continue
+
+        # Remove duplicate lines
+        if line not in seen:
+            seen.add(line)
+            lines.append(line)
+
+    cleaned_text = "\n".join(lines)
+
+    # Hard safety limit (VERY important for LLM usage)
+    MAX_CHARS = 12000
+    return cleaned_text[:MAX_CHARS]
+
 async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
@@ -202,8 +248,8 @@ async def tailor_resume_groq(
     else:
         print("Detected DOCX resume format")
         resume_content = await extract_text_from_docx(decode_base64_docx(resume_content))
-        
-    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
+    print("Extracted resume text length:", len(resume_content), len(clean_cell(resume_content)))
+    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", clean_cell(resume_content))
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client
