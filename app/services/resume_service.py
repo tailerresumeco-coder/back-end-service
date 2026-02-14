@@ -2,7 +2,7 @@ from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection, feedback_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
-from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
 import json
 import re
 import os
@@ -16,6 +16,7 @@ from app.services.s3_service import upload_file_to_s3
 import base64
 from io import BytesIO
 import pdfplumber
+import re
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -192,8 +193,6 @@ async def extract_text_from_docx(docx_bytes: bytes) -> str:
     except Exception as e:
         raise ValueError(f"Error extracting text from DOCX: {str(e)}")
 
-import re
-
 def clean_cell(text: str) -> str:
     if not text:
         return ""
@@ -238,18 +237,23 @@ def clean_cell(text: str) -> str:
     MAX_CHARS = 12000
     return cleaned_text[:MAX_CHARS]
 
+async def extract_text_from_resume(resume_content: str):
+    if (resume_content.startswith("data:application/pdf;base64,")):
+        print("Detected PDF resume format")
+        resume_content = await (extract_text_from_pdf(decode_base64_pdf(resume_content)))
+    else:
+        print("Detected DOCX resume format")
+        resume_content = await (extract_text_from_docx(decode_base64_docx(resume_content)))
+    return clean_cell(resume_content)
+
 async def tailor_resume_groq(
     resume_content: str,
     jd_text: str
 ) -> Dict[str, Any]:
-    if (resume_content.startswith("data:application/pdf;base64,")):
-        print("Detected PDF resume format")
-        resume_content = await extract_text_from_pdf(decode_base64_pdf(resume_content))
-    else:
-        print("Detected DOCX resume format")
-        resume_content = await extract_text_from_docx(decode_base64_docx(resume_content))
-    print("Extracted resume text length:", len(resume_content), len(clean_cell(resume_content)))
-    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", clean_cell(resume_content))
+    
+    resume_content =  await extract_text_from_resume(resume_content)
+   
+    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
     prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
     
     # Initialize Groq client
@@ -269,7 +273,7 @@ async def tailor_resume_groq(
                 }
             ],
             temperature=0,  # Deterministic for structured data
-            max_tokens=4096
+            max_tokens=8000
         )
         
         # Extract response
@@ -287,15 +291,12 @@ async def tailor_resume_groq(
                 "raw_response": response_text[:500]  # First 500 chars for debugging
             }
             
-        # parsed_response['ats_score']['before_tailoring'] = round(parsed_response['before_tailoring_jd_keywords']/parsed_response['total_jd_keywords']*100) if parsed_response['total_jd_keywords'] > 0 else 0
-        # parsed_response['ats_score']['after_tailoring'] = round(parsed_response['after_tailoring_jd_keywords']/parsed_response['total_jd_keywords']*100) if parsed_response['total_jd_keywords'] > 0 else 0
-        
         # Success
         input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
         output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
         
         active_api_key = await get_active_apikey()
-        token_record = await groq_tokens_collection.find_one({"apikey": active_api_key})
+        token_record = await groq_tokens_collection.find_one({"apikey": active_api_key}) #no need - directly update active token
         groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
         
         await add_user_or_handle_existing(
@@ -396,3 +397,36 @@ def decode_base64_docx(base64_str: str) -> bytes:
         raise ValueError("Invalid DOCX file")
 
     return docx_bytes
+
+async def check_ats_score(resume_text: str, jd: str):
+    print('Begin resume_service.py -> check_ats_score()')
+    resume_content = await extract_text_from_resume(resume_text)
+    prompt = GET_ATS_SCORE_PROMPT.replace("{JOB_DESCRIPTION}", jd).replace("{RESUME_TEXT}", resume_content)
+    client = await get_groq_client()
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0,
+            max_tokens=8000
+        )
+        response_text = completion.choices[0].message.content
+        parsed_response = extract_json(response_text)
+        return {
+            "status": "success",
+            "data": parsed_response,
+            "model": model
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": "Error checking ATS score",
+            "error": str(e)
+        }
+        

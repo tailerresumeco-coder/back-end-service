@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq, feedback as feedback_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq, feedback as feedback_service, check_ats_score as check_ats_score_service
 from app.models.tailer_resume_request import TailerResumeRequestModel, TailerResumeRequestModelV2
 from app.models.download_resume_request import DownloadResumeRequestModel
 from app.models.feedback_model import FeedbackModel
@@ -58,3 +58,10 @@ async def store_resumes(payload: StoreResumesRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error storing resumes: {str(e)}")
+    
+@router.post("/check-ats-score")
+async def check_ats_score(payload: TailerResumeRequestModel):
+    print('Begin resume_router.py -> check_ats_score()')
+    response = await check_ats_score_service(payload.resume, payload.jd)
+    print('End resume_router.py -> check_ats_score()')
+    return response

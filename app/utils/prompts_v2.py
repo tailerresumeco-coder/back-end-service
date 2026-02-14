@@ -218,6 +218,132 @@ RESUME:
 JOB DESCRIPTION:
 {{JOB_DESCRIPTION}}
 """
+GET_ATS_SCORE_PROMPT = '''You are an expert ATS (Applicant Tracking System) analyzer and career consultant. Analyze the following resume against the job description and provide a detailed assessment.
+
+**JOB DESCRIPTION:**
+{JOB_DESCRIPTION}
+
+**RESUME:**
+{RESUME_TEXT}
+
+You MUST return your response as a valid JSON object with the EXACT structure below. Do not include any markdown formatting, code blocks, or text outside the JSON object.
+
+Return ONLY this JSON structure:
+
+{{
+  "ats_score": {{
+    "score": <number between 0-100>,
+    "explanation": "<string: brief explanation of scoring criteria>"
+  }},
+  "keywords_in_jd": {{
+    "technical_skills": ["<array of strings: programming languages, frameworks, tools>"],
+    "soft_skills": ["<array of strings: collaboration, problem-solving, etc>"],
+    "methodologies": ["<array of strings: Agile, Scrum, SDLC, etc>"],
+    "experience_requirements": ["<array of strings: years of experience, specific requirements>"],
+    "educational_requirements": ["<array of strings: degree requirements>"]
+  }},
+  "existing_keywords_in_resume": {{
+    "technical_skills": [
+      <string: keyword name>
+    ],
+    "soft_skills": [
+      <string: keyword name>
+    ],
+    "methodologies": [
+      <string: keyword name>
+    ],
+    "experience_requirements": [
+      <string: keyword name>
+    ],
+    "educational_requirements": [
+      <string: keyword name>
+    ]
+  }},
+  "missing_keywords": {{
+    "critical": ["<array of strings: must-have keywords that significantly impact ATS scoring>"],
+    "important": ["<array of strings: valuable keywords that should be added>"],
+    "optional": ["<array of strings: nice-to-have keywords>"]
+  }},
+  "semantic_mismatch": [
+    {{
+      "resume_term": "<string: term used in resume>",
+      "jd_term": "<string: term used in JD>",
+      "suggestion": "<string: specific suggestion for alignment>",
+      "impact": "<string: High/Medium/Low - impact on ATS score>"
+    }}
+  ],
+  "improvement_suggestions": {{
+    "content_additions": [
+      {{
+        "suggestion": "<string: what to add>",
+        "location": "<string: where to add it>",
+        "priority": "<string: High/Medium/Low>"
+      }}
+    ],
+    "terminology_updates": [
+      {{
+        "current": "<string: current phrasing>",
+        "suggested": "<string: suggested phrasing>",
+        "reason": "<string: why this change helps>"
+      }}
+    ],
+    "section_improvements": [
+      {{
+        "section": "<string: section name>",
+        "improvement": "<string: what needs enhancement>",
+        "example": "<string: specific example or guidance>"
+      }}
+    ],
+    "quantification": [
+      {{
+        "current": "<string: current statement>",
+        "suggested": "<string: statement with metrics>",
+        "location": "<string: where in resume>"
+      }}
+    ],
+    "formatting": [
+      "<array of strings: ATS-friendly formatting suggestions>"
+    ],
+    "priority_actions": [
+      {{
+        "action": "<string: specific action to take>",
+        "impact": "<string: expected impact on ATS score>",
+        "effort": "<string: Low/Medium/High - effort required>"
+      }}
+    ]
+  }},
+  "eligibility_assessment": {{
+    "education": {{
+      "jd_requirement": "<string: education requirement from JD>",
+      "candidate_education": "<string: candidate's actual education>",
+      "status": "<string: Meets/Does Not Meet/Partially Meets>",
+      "explanation": "<string: brief explanation>"
+    }},
+    "experience": {{
+      "jd_requirement": "<string: experience requirement from JD>",
+      "candidate_experience": "<string: candidate's actual experience with calculation>",
+      "status": "<string: Meets/Does Not Meet/Partially Meets>",
+      "explanation": "<string: detailed explanation considering all experience types>"
+    }},
+    "overall": {{
+      "assessment": "<string: Eligible/Not Eligible/Borderline>",
+      "confidence_level": "<string: High/Medium/Low>",
+      "reasoning": "<string: 2-3 sentences explaining the overall fit>",
+      "recommendation": "<string: brief recommendation for the candidate>"
+    }}
+  }}
+}}
+
+CRITICAL INSTRUCTIONS:
+1. Return ONLY valid JSON - no markdown, no code blocks, no explanatory text
+2. All string values must be properly escaped
+3. Use double quotes for all keys and string values
+4. Ensure all arrays and objects are properly closed
+5. Do not include comments in the JSON
+6. All placeholder text in angle brackets above should be replaced with actual analysis
+7. Be specific, actionable, and honest in your assessment
+8. Focus on helping the candidate optimize their resume for ATS systems while maintaining accuracy
+'''
 
 RESUME_TAILOR_PROMPT = """Role: You are an expert ATS Optimization Engine. Your goal is to refine a resume to match a Job Description (JD) while maintaining 100% FACTUAL ACCURACY about the candidate's actual experience.
 
