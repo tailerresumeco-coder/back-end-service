@@ -3,220 +3,196 @@
 # One prompt: Resume + JD → Tailored JSON (with zero data loss)
 # =============================================================================
 
-RESUME_TAILOR_PROMPT0 = """You are an ATS resume parser and optimizer. Extract ALL data from the resume and tailor it for the job description.
 
-## CRITICAL RULES - ZERO DATA LOSS
 
-### 1. EXTRACT EVERYTHING (MOST IMPORTANT)
-- Every bullet point in resume MUST appear in output
-- Every skill mentioned MUST be extracted
-- Every project MUST be captured
-- Every certification MUST be listed
-- Every internship MUST be captured
-- Every award/honor MUST be listed
-- Every language MUST be listed
-- COUNT all bullets and verify: output_bullets >= input_bullets
+RESUME_TAILOR_PROMPT0 = """You are an expert ATS (Applicant Tracking System) resume optimization specialist. Analyze the provided resume against the job description and return a comprehensive JSON response.
 
-### 2. NO FABRICATION
-- NEVER add skills not in resume
-- NEVER invent metrics ("improved by 40%")
-- NEVER add fake certifications, experiences, awards, or languages
-- Missing JD skills go in gap_analysis ONLY
+**INPUT:**
+RESUME: {RESUME_TEXT}
+JOB_DESCRIPTION: {JOB_DESCRIPTION}
 
-### 3. TAILORING ALLOWED
-- REPHRASE bullets using JD keywords (if truthful)
-- REORDER skills by JD relevance (matched first)
-- STRENGTHEN action verbs (used → implemented)
-- SPLIT bullets if they have multiple achievements
-- NEVER DELETE or MERGE bullets
-
-### 4. EXPERIENCE STRUCTURE
-- Group multiple projects under same company/role
-- Each project has: project_name, duration, technologies, responsibilities
-- Use "role" field, duration in "MMM YYYY – MMM YYYY" format
-
-### 5. INTERNSHIPS STRUCTURE (Similar to Experience)
-- Extract all internships separately from work experience
-- Each internship has: role, company, location, duration, responsibilities/highlights
-- Tailor internship bullets using JD keywords (if truthful)
-- Internships should be distinct from full-time work experience
-
-### 6. AWARDS & HONORS STRUCTURE
-- Extract all awards, honors, recognitions, achievements
-- Each award has: title, issuer/organization, date, description
-- Include academic awards, work recognitions, competition wins, certifications of achievement
-
-### 7. LANGUAGES STRUCTURE
-- Extract all languages mentioned (human languages, NOT programming languages)
-- Each language has: language name, proficiency level (e.g., Native, Fluent, Professional, Conversational, Basic)
-- Include programming languages in skills section, NOT here
-
-### 8. PROJECT CLASSIFICATION (STRICT - NO DUPLICATES)
-- Experience section: ONLY work projects done at a company (part of job responsibilities)
-- Projects section: ONLY personal, academic, side projects, or hackathon projects (NOT done at any employer)
-- A project MUST appear in ONE section ONLY - NEVER IN BOTH
-- If a project is mentioned under work experience (company/employer), DO NOT add it to the projects section
-- If a project has no associated company/employer, it goes in projects section only
-
-### 9. SKILLS EXTRACTION
-Extract ALL skills from resume and organize into DYNAMIC categories based on actual content.
-Create categories that best represent the resume's skills (examples below, but use what fits):
-- Languages: Java, Python, JavaScript, TypeScript, SQL
-- Frameworks: Spring Boot, React, Angular, Node.js, Express
-- Databases: PostgreSQL, MongoDB, MySQL, Redis
-- Cloud & DevOps: AWS, Docker, Kubernetes, CI/CD, Jenkins
-- Tools: Git, Postman, Figma, Jira, VS Code
-- Soft Skills: Problem Solving, Communication, Teamwork
-
-IMPORTANT: Create as many or as few categories as needed based on the resume content.
-Each category should have at least 2-3 items. Combine sparse categories if needed.
-
-### 10. CHANGE TRACKING
-For transparency, document all modifications made during tailoring:
-- Track which bullets were rephrased and why
-- List keywords injected from JD into content
-- Note action verbs that were strengthened
-- Summarize changes made to each section
-
-## ATS SCORE
-Score = (Matched JD Keywords / Total JD Keywords) × 100
-
-## JSON SCHEMA
+**OUTPUT REQUIREMENTS:**
+Return a valid JSON object with the following structure:
 
 {
-  "basic": {
-    "name": "",
-    "phone": "",
-    "email": "",
-    "location": "",
-    "links": {
-      "linkedin": "",
-      "github": "",
-      "leetcode": "",
-      "other": ""
-    }
-  },
   "ats_score": {
-    "before_tailoring": 0,
-    "after_tailoring": 0,
-    "score_explanation": ""
+    "before_tailoring": <number 0-100>,
+    "after_tailoring": <number 0-100>
+    "overall_score": <number 0-100>,
+    "breakdown": {
+      "keyword_match": <number 0-100>,
+      "skills_alignment": <number 0-100>,
+      "experience_relevance": <number 0-100>,
+      "format_compatibility": <number 0-100>
+    },
+    "score_explanation": "<brief explanation of score>"
   },
   "gap_analysis": {
-    "missing_technical_skills": [],
-    "missing_certifications_or_education": [],
-    "experience_gap": "",
-    "related_skills_found": []
+    "missing_critical_skills": [<array of required skills not in resume>],
+    "missing_preferred_skills": [<array of preferred skills not in resume>],
+    "present_skills": [<array of matching skills found>],
+    "transferable_skills": [<array of skills that can be reframed to match JD>]
   },
-  "tailored_content": {
-    "professional_summary": "",
-    "experience": [
+  "recommendations": {
+    "immediate_actions": [<array of quick fixes>],
+    "resume_improvements": [<array of structural improvements>],
+    "skill_development": [<array of skills to learn>]
+  },
+  "tailored_resume": {
+    "header": {
+      "name": "<name>",
+      "title": "<job-targeted title>",
+      "phone": "<phone>",
+      "email": "<email>",
+      "linkedin": "<linkedin>",
+      "github": "<github>",
+      "portfolio": "<portfolio if available>",
+      "location": "<location if available>"
+    },
+    "professional_summary": "<2-3 sentence summary optimized for JD keywords>",
+    
+    "technical_skills": {
+      "<category_name_1>": [<array of skills>],
+      "<category_name_2>": [<array of skills>],
+      "<category_name_3>": [<array of skills>]
+    },
+    
+    "professional_experience": [
       {
-        "role": "",
-        "company": "",
-        "location": "",
-        "duration": "",
-        "projects": [
-          {
-            "project_name": "",
-            "duration": "",
-            "technologies": [],
-            "responsibilities": []
-          }
-        ]
+        "company": "<company name>",
+        "title": "<job title - reframed if needed>",
+        "location": "<location>",
+        "duration": "<start_date - end_date>",
+        "achievements": [<array of bullet points with metrics and JD keywords>]
       }
     ],
+    
     "internships": [
       {
-        "role": "",
-        "company": "",
-        "location": "",
-        "duration": "",
-        "responsibilities": []
+        "company": "<company name>",
+        "title": "<internship title>",
+        "location": "<location>",
+        "duration": "<start_date - end_date>",
+        "achievements": [<array of bullet points>]
       }
     ],
-    "education": [
-      {
-        "institution": "",
-        "degree": "",
-        "duration": "",
-        "gpa": ""
-      }
-    ],
-    "skills": [
-      {
-        "category": "Languages",
-        "items": []
-      },
-      {
-        "category": "Frameworks",
-        "items": []
-      }
-    ],
+    
     "projects": [
       {
-        "project_name": "",
-        "technologies": [],
-        "highlights": []
+        "name": "<project name>",
+        "technologies": "<tech stack>",
+        "duration": "<duration if available>",
+        "description": [<array of achievement bullets>],
+        "link": "<github/live link if available>"
       }
     ],
-    "certifications": [],
+    
+    "education": [
+      {
+        "degree": "<degree name>",
+        "institution": "<institution name>",
+        "location": "<location>",
+        "duration": "<start_date - end_date>",
+        "gpa": "<GPA if available>",
+        "relevant_coursework": [<array if available>]
+      }
+    ],
+    
+    "certifications": [
+      {
+        "name": "<certification name>",
+        "issuing_organization": "<organization>",
+        "date": "<date if available>",
+        "credential_id": "<id if available>"
+      }
+    ],
+    
     "awards": [
       {
-        "title": "",
-        "issuer": "",
-        "date": "",
-        "description": ""
+        "title": "<award title>",
+        "organization": "<issuing organization>",
+        "date": "<date>",
+        "description": "<brief description if needed>"
       }
     ],
+    
     "languages": [
       {
-        "language": "",
-        "proficiency": ""
+        "language": "<language name>",
+        "proficiency": "<proficiency level>"
       }
     ],
-    "highlight_keywords": []
+    
+    "additional_sections": {
+      "publications": [<array if applicable>],
+      "volunteer_work": [<array if applicable>],
+      "professional_memberships": [<array if applicable>]
+    }
   },
-  "_validation": {
-    "input_bullet_count": 0,
-    "output_bullet_count": 0,
-    "data_integrity_verified": true
+  
+  "keyword_optimization": {
+    "critical_keywords_added": [<array of JD keywords incorporated>],
+    "keyword_frequency": {
+      "<keyword_1>": <count>,
+      "<keyword_2>": <count>
+    }
   },
-  "change_summary": {
-    "total_modifications": 0,
-    "summary_changes": "Description of changes made to professional summary",
-    "experience_modifications": [
-      {
-        "company": "Company Name",
-        "changes": ["Rephrased bullet to include keyword X", "Strengthened action verb from Y to Z"]
-      }
-    ],
-    "internship_modifications": [
-      {
-        "company": "Company Name",
-        "changes": ["Rephrased bullet to include keyword X"]
-      }
-    ],
-    "skills_changes": ["Reordered skills to prioritize JD-matching ones", "Grouped related skills"],
-    "keywords_injected": ["keyword1", "keyword2"]
-  }
+  
+  "next_steps": [<array of actionable recommendations>]
 }
 
-## BEFORE OUTPUT - VERIFY:
-☐ Every resume bullet is in output
-☐ output_bullet_count >= input_bullet_count
-☐ No skills added that weren't in resume
-☐ Missing JD skills are in gap_analysis only
-☐ Internships extracted separately from work experience
-☐ Awards and languages captured if present
-☐ change_summary accurately reflects all modifications made
+**CRITICAL SECTION SEPARATION RULES:**
 
-Return ONLY valid JSON. No markdown.
+1. **Work Experience vs Internships:**
+   - "professional_experience": ONLY full-time jobs, contract positions, or ongoing employment
+   - "internships": ONLY internship positions, co-op programs, or trainee roles
+   - Look for keywords: "Intern", "Internship", "Co-op", "Trainee", "Summer Analyst"
+   - If unclear, use job duration and context to determine classification
 
-RESUME:
-{{RESUME_TEXT}}
+2. **Projects:**
+   - ONLY include personal projects, academic projects, hackathon projects, or freelance work
+   - DO NOT include work done as part of professional experience or internships
+   - Look for: "Personal Project", "Academic Project", "Freelance", "Side Project"
 
-JOB DESCRIPTION:
-{{JOB_DESCRIPTION}}
+3. **Technical Skills Categories:**
+   - Organize skills into logical categories based on the JD requirements
+   - Common categories: "Programming Languages", "Frontend Technologies", "Backend Technologies", "Databases", "Tools & Platforms", "Cloud Services", "Frameworks & Libraries"
+   - Ensure each category is relevant to the target role
+
+4. **Certifications vs Awards:**
+   - "certifications": Professional certificates, course completions, technical certifications
+   - "awards": Achievements, scholarships, competition wins, honors
+
+5. **Languages:**
+   - Only include if present in original resume
+   - Use standard proficiency levels: Native, Fluent, Professional, Intermediate, Basic
+
+6. **Empty Sections:**
+   - If a section has no content, return empty array [] or omit the section
+   - Example: If no internships exist, use "internships": []
+
+**ANALYSIS GUIDELINES:**
+1. Calculate ATS score based on keyword matching, skills alignment, relevant experience, and format
+2. Identify gaps between resume and JD requirements
+3. Rewrite experience bullets to include JD keywords naturally
+4. Quantify achievements where possible (use metrics, percentages, numbers)
+5. Ensure all critical JD keywords appear in tailored resume
+6. Maintain truthfulness - only reframe existing experience, don't fabricate
+7. Optimize for both ATS parsing and human readability
+8. Preserve all original information while reorganizing into proper sections
+9. Use action verbs: Developed, Implemented, Designed, Optimized, Led, etc.
+10. Return ONLY valid JSON, no additional text or markdown formatting
+
+**SCORING CRITERIA:**
+- 90-100: Excellent match, minimal changes needed
+- 75-89: Good match, some optimization recommended
+- 60-74: Moderate match, significant tailoring needed
+- Below 60: Poor match, major gaps in skills/experience
+
+**IMPORTANT:** Analyze the resume carefully to distinguish between:
+- Full-time work vs internships (check for "Intern" keyword or duration patterns)
+- Work-related projects vs personal projects
+- Technical certifications vs academic awards
 """
 GET_ATS_SCORE_PROMPT = '''You are an expert ATS (Applicant Tracking System) analyzer and career consultant. Analyze the following resume against the job description and provide a detailed assessment.
 
