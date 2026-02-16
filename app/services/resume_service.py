@@ -252,9 +252,10 @@ async def tailor_resume_groq(
 ) -> Dict[str, Any]:
     
     resume_content =  await extract_text_from_resume(resume_content)
+
    
-    prompt = RESUME_TAILOR_PROMPT.replace("{{RESUME_TEXT}}", resume_content)
-    prompt = prompt.replace("{{JOB_DESCRIPTION}}", jd_text)
+    prompt = RESUME_TAILOR_PROMPT0.replace("{RESUME_TEXT}", resume_content)
+    prompt = prompt.replace("{JOB_DESCRIPTION}", jd_text)
     
     # Initialize Groq client
     client = await get_groq_client()
@@ -299,18 +300,18 @@ async def tailor_resume_groq(
         token_record = await groq_tokens_collection.find_one({"apikey": active_api_key}) #no need - directly update active token
         groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
         
-        await add_user_or_handle_existing(
-            email=parsed_response["basic"]["email"],
-            name=parsed_response["basic"]["name"],
-            phone=parsed_response["basic"]["phone"],
-        )
+        # await add_user_or_handle_existing(
+        #     email=parsed_response["basic"]["email"],
+        #     name=parsed_response["basic"]["name"],
+        #     phone=parsed_response["basic"]["phone"],
+        # )
         
         if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
             try:
                 await send_token_nearly_exhausted_email()
             except Exception as e:
                 print("Error sending token nearly exhausted email:", str(e))
-        await tailored_notify_email(parsed_response["basic"]["name"], parsed_response["basic"]["email"])
+        # await tailored_notify_email(parsed_response["basic"]["name"], parsed_response["basic"]["email"])
         return {
             "status": "success",
             "data": parsed_response,
@@ -402,6 +403,7 @@ async def check_ats_score(resume_text: str, jd: str):
     print('Begin resume_service.py -> check_ats_score()')
     resume_content = await extract_text_from_resume(resume_text)
     prompt = GET_ATS_SCORE_PROMPT.replace("{JOB_DESCRIPTION}", jd).replace("{RESUME_TEXT}", resume_content)
+
     client = await get_groq_client()
     model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     try:
@@ -429,4 +431,3 @@ async def check_ats_score(resume_text: str, jd: str):
             "message": "Error checking ATS score",
             "error": str(e)
         }
-        
