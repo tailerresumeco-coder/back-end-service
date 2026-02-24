@@ -17,6 +17,7 @@ import base64
 from io import BytesIO
 import pdfplumber
 import re
+from urllib.parse import unquote
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -171,18 +172,44 @@ def extract_json(text: str) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in response: {str(e)}")
     
+
 async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     try:
-        extracted_text = ""
-        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
-            for page_number, page in enumerate(pdf.pages, start=1):
-                page_text = page.extract_text()
-                if page_text:
-                    extracted_text += page_text
+        final_text = ""
 
-        return extracted_text
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text() or ""
+                words = page.extract_words(use_text_flow=True)
+
+                # Replace visible words with links
+                if page.hyperlinks:
+                    for link in page.hyperlinks:
+                        uri = link.get("uri")
+                        if not uri:
+                            continue
+
+                        uri = unquote(uri)
+
+                        for word in words:
+                            # check overlap between word & link rectangle
+                            if (
+                                word["x0"] >= link["x0"]
+                                and word["x1"] <= link["x1"]
+                                and word["top"] >= link["top"]
+                                and word["bottom"] <= link["bottom"]
+                            ):
+                                page_text = page_text.replace(
+                                    word["text"],
+                                    uri
+                                )
+
+                final_text += page_text + "\n"
+        return final_text.strip()
+
     except Exception as e:
-        raise ValueError(f"Error extracting text from PDF: {str(e)}")
+        raise ValueError(f"PDF extract error: {str(e)}")
+    
     
 async def extract_text_from_docx(docx_bytes: bytes) -> str:
     try:

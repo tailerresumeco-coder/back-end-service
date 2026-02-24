@@ -40,7 +40,19 @@ JOB_DESCRIPTION: {JOB_DESCRIPTION}
     "skill_development": [<skills to learn>]
   }},
   "tailored_resume": {{
-    "header": {{"name": "", "title": "", "phone": "", "email": "", "linkedin": "", "github": "", "portfolio": "", "location": ""}},
+    "header": {
+      "name": "", 
+      "title": "", 
+      "phone": "", 
+      "email": "", 
+      "linkedin": "", 
+      "github": "", 
+      "portfolio": "", 
+      "location": "",
+      "other": [
+        {"label": "<link type or empty if unknown>", "url": ""}
+      ]
+    },          
     "professional_summary": "<2-3 sentences with JD keywords>",
     "technical_skills": {{"<category>": [<skills>]}},
     "professional_experience": [{{
