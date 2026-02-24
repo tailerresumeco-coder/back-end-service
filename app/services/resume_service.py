@@ -66,7 +66,7 @@ async def feedback(liked: bool, unLiked: bool, message: str, email: str, name: s
     return {"message": "Feedback received successfully"}
 
 async def download_resume(html: str, filename: str, response_type: str = "pdf"):
-    print('Begin resume_service.py -> download_resume()')
+    print('-----Begin resume_service.py -> download_resume()')
     try:
         html_document = f"""
         <html>
