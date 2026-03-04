@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
+from app.routers.mail_router import router as mail_router
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = FastAPI(
@@ -61,3 +62,4 @@ def create_item(item: Item):
 # Include routers LAST
 app.include_router(resume_router)
 app.include_router(token_router)
+app.include_router(mail_router)

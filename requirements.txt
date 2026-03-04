@@ -13,3 +13,4 @@ certifi
 dnspython
 boto3
 pdfplumber
+python-multipart
