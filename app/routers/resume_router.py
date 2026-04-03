@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Any, Dict
 from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq, feedback as feedback_service, check_ats_score as check_ats_score_service
 from app.models.tailer_resume_request import TailerResumeRequestModel, TailerResumeRequestModelV2
@@ -6,6 +6,7 @@ from app.models.download_resume_request import DownloadResumeRequestModel
 from app.models.feedback_model import FeedbackModel
 from app.services.resume_service import store_resumes as store_resumes_service
 from app.models.store_resumes_request import StoreResumesRequest
+from app.utils.dependencies import get_current_user
 
 router = APIRouter(
     prefix="/resume",
@@ -24,7 +25,7 @@ async def upload_resume(payload: Dict[str, Any]):
 
 
 @router.post("/tailer-resume-legacy")
-async def tailer_resume_legacy(payload: TailerResumeRequestModel):
+async def tailer_resume_legacy(payload: TailerResumeRequestModel, user=Depends(get_current_user) ):
     print('Begin resume_router.py -> tailer_resume_legacy()')
     response = await tailor_resume_groq(payload.resume, payload.jd)
     print('End resume_router.py -> tailer_resume_legacy()')

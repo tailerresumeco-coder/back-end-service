@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
 from app.routers.mail_router import router as mail_router
+from app.routers.auth_router import router as auth_router
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = FastAPI(
@@ -31,7 +32,7 @@ app.add_middleware(
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["*"],
     expose_headers=["Content-Disposition"]
 )
 
@@ -63,3 +64,4 @@ def create_item(item: Item):
 app.include_router(resume_router)
 app.include_router(token_router)
 app.include_router(mail_router)
+app.include_router(auth_router)
