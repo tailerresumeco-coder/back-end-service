@@ -191,6 +191,7 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
 
                         uri = unquote(uri)
 
+
                         for word in words:
                             # check overlap between word & link rectangle
                             if (

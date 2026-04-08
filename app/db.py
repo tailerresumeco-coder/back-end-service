@@ -62,3 +62,4 @@ async def setup_job_indexes():
     # Additional query performance indexes
     await jobs_collection.create_index("source")
     await jobs_collection.create_index("is_valid_url")
+auth_collection = db["auth"]

@@ -15,6 +15,7 @@ from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
 from app.routers.mail_router import router as mail_router
 from app.routers.job_router import router as job_router
+from app.routers.auth_router import router as auth_router
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -35,7 +36,7 @@ app.add_middleware(
     ],
     allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["*"],
     expose_headers=["Content-Disposition"]
 )
 
@@ -111,3 +112,4 @@ app.include_router(resume_router)
 app.include_router(token_router)
 app.include_router(mail_router)
 app.include_router(job_router)
+app.include_router(auth_router)
