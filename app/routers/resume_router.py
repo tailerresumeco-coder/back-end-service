@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from typing import Any, Dict
-from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq, feedback as feedback_service, check_ats_score as check_ats_score_service
+from app.services.resume_service import upload_resume as upload_resume_service, tailer_resume as tailer_resume_service, download_resume as download_resume_service, tailor_resume_groq, feedback as feedback_service, check_ats_score as check_ats_score_service, tailor_resume_from_job as tailor_from_job_service
 from app.models.tailer_resume_request import TailerResumeRequestModel, TailerResumeRequestModelV2
 from app.models.download_resume_request import DownloadResumeRequestModel
 from app.models.feedback_model import FeedbackModel
 from app.services.resume_service import store_resumes as store_resumes_service
 from app.models.store_resumes_request import StoreResumesRequest
 from app.utils.dependencies import get_current_user
+from app.services.user_resume_service import (
+    upload_resume as upload_user_resume,
+    list_resumes,
+    get_active_resume,
+    activate_resume,
+    delete_resume,
+)
 
 router = APIRouter(
     prefix="/resume",
@@ -66,3 +73,51 @@ async def check_ats_score(payload: TailerResumeRequestModel):
     response = await check_ats_score_service(payload.resume, payload.jd)
     print('End resume_router.py -> check_ats_score()')
     return response
+
+
+# ── Tailor from job listing ────────────────────────────────────────────────
+
+@router.post("/tailor-from-job/{job_id}")
+async def tailor_from_job(job_id: str, user: dict = Depends(get_current_user)):
+    email = user["sub"]
+    return await tailor_from_job_service(email, job_id)
+
+
+# ── User resume management ─────────────────────────────────────────────────
+
+@router.post("/my-resumes/upload")
+async def upload_my_resume(
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    user: dict = Depends(get_current_user),
+):
+    email = user["sub"]
+    return await upload_user_resume(email, file, name)
+
+
+@router.get("/my-resumes")
+async def get_my_resumes(user: dict = Depends(get_current_user)):
+    email = user["sub"]
+    resumes = await list_resumes(email)
+    return {"resumes": resumes}
+
+
+@router.get("/my-resumes/active")
+async def get_my_active_resume(user: dict = Depends(get_current_user)):
+    email = user["sub"]
+    resume = await get_active_resume(email)
+    if resume:
+        return {"has_active": True, "resume": resume}
+    return {"has_active": False, "resume": None}
+
+
+@router.patch("/my-resumes/{resume_id}/activate")
+async def activate_my_resume(resume_id: str, user: dict = Depends(get_current_user)):
+    email = user["sub"]
+    return await activate_resume(email, resume_id)
+
+
+@router.delete("/my-resumes/{resume_id}")
+async def delete_my_resume(resume_id: str, user: dict = Depends(get_current_user)):
+    email = user["sub"]
+    return await delete_resume(email, resume_id)
