@@ -40,7 +40,7 @@ app.add_middleware(
     expose_headers=["Content-Disposition"]
 )
 
-from app.db import setup_job_indexes
+from app.db import setup_job_indexes, setup_user_resume_indexes
 from app.services.job_aggregation_service import run_aggregation
 
 scheduler = AsyncIOScheduler()
@@ -51,6 +51,7 @@ scheduler = AsyncIOScheduler()
 async def startup():
     # Set up MongoDB indexes for jobs
     await setup_job_indexes()
+    await setup_user_resume_indexes()
 
     # Incremental run — every N hours (default 6)
     interval_hours = int(os.getenv("JOB_FETCH_INTERVAL_HOURS", "6"))

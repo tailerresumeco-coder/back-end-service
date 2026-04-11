@@ -33,6 +33,9 @@ feedback_collection = db["feedback"]
 jobs_collection = db["jobs"]
 job_fetch_logs_collection = db["job_fetch_logs"]
 
+# User-owned resumes
+user_resumes_collection = db["user_resumes"]
+
 
 async def setup_job_indexes():
     """Create indexes for jobs collection. Safe to call on every startup (idempotent)."""
@@ -62,4 +65,12 @@ async def setup_job_indexes():
     # Additional query performance indexes
     await jobs_collection.create_index("source")
     await jobs_collection.create_index("is_valid_url")
+
+
+async def setup_user_resume_indexes():
+    """Create indexes for user_resumes collection. Idempotent."""
+    await user_resumes_collection.create_index("email")
+    await user_resumes_collection.create_index([("email", 1), ("is_active", 1)])
+
+
 auth_collection = db["auth"]
