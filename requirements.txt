@@ -2,7 +2,7 @@ uvicorn
 fastapi
 motor
 openai
-dotenv
+python-dotenv
 gunicorn
 groq
 pydantic
