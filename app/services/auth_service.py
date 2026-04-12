@@ -1,6 +1,16 @@
-
+from google.oauth2 import id_token
+from google.auth.transport import requests
 from app.db import auth_collection
 from app.utils.jwt import create_access_token
+import os
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
+async def get_user_by_email(email):
+    return await auth_collection.find_one({"email": email})
+
+async def create_user(user):
+    return await auth_collection.insert_one(user)
 
 async def signup(email, password, confirmPassword):
     if password != confirmPassword:
@@ -39,3 +49,46 @@ async def login(email, password):
             "email": user["email"]
         }
     }
+
+async def google_signup(credential: str):
+    print('Begin auth_service.py -> google_signup()')
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            credential,
+            requests.Request(),
+            GOOGLE_CLIENT_ID
+        )
+
+        email = idinfo.get("email")
+        name = idinfo.get("name")
+        google_id = idinfo.get("sub")
+
+        if not email:
+            return {"error": "Email not found in token"}
+
+        # 🔍 Check if user exists
+        user = await get_user_by_email(email)
+
+        if not user:
+            # 🆕 Create user
+            user = await create_user({
+                "email": email,
+                "name": name,
+                "provider": "google",
+                "google_id": google_id
+            })
+            token = create_access_token({"sub": email})
+
+        # 🔐 Generate YOUR JWT (not Google token)
+        token = create_access_token({"sub": email})
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "email": email
+            }
+        }
+
+    except ValueError:
+        return {"error": "Invalid Google token"}
