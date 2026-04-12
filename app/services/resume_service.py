@@ -2,7 +2,7 @@ from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection, feedback_collection, user_resumes_collection, jobs_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
-from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
 import json
 import re
 import os
@@ -304,7 +304,7 @@ async def tailor_resume_groq(
                 }
             ],
             temperature=0,  # Deterministic for structured data
-            max_tokens=8000
+            max_tokens=16000
         )
         
         # Extract response
@@ -336,7 +336,10 @@ async def tailor_resume_groq(
         #     phone=parsed_response["basic"]["phone"],
         # )
         
-        if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
+        DAILY_TOKEN_LIMIT = 100_000
+        ALERT_THRESHOLD = 0.80  # Send alert at 80% usage
+        total_tokens_used = token_record["tokens"] + input_tokens + output_tokens
+        if total_tokens_used >= DAILY_TOKEN_LIMIT * ALERT_THRESHOLD:
             try:
                 await send_token_nearly_exhausted_email()
             except Exception as e:
