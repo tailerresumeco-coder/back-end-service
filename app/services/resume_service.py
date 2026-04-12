@@ -1,8 +1,8 @@
 from typing import Any, Dict
-from app.db import resumes_collection, groq_tokens_collection, feedback_collection
+from app.db import resumes_collection, groq_tokens_collection, feedback_collection, user_resumes_collection, jobs_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
-from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT, RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
 import json
 import re
 import os
@@ -12,8 +12,10 @@ from dotenv import load_dotenv
 from app.services.mail_service import send_email_test, send_token_nearly_exhausted_email, tailored_notify_email
 from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
 import io
+import boto3
 from app.services.s3_service import upload_file_to_s3
 import base64
+from bson import ObjectId
 from io import BytesIO
 import pdfplumber
 import re
@@ -302,7 +304,7 @@ async def tailor_resume_groq(
                 }
             ],
             temperature=0,  # Deterministic for structured data
-            max_tokens=8000
+            max_tokens=16000
         )
         
         # Extract response
@@ -334,7 +336,10 @@ async def tailor_resume_groq(
         #     phone=parsed_response["basic"]["phone"],
         # )
         
-        if (token_record["tokens"] + input_tokens + output_tokens) >= 1:
+        DAILY_TOKEN_LIMIT = 100_000
+        ALERT_THRESHOLD = 0.80  # Send alert at 80% usage
+        total_tokens_used = token_record["tokens"] + input_tokens + output_tokens
+        if total_tokens_used >= DAILY_TOKEN_LIMIT * ALERT_THRESHOLD:
             try:
                 await send_token_nearly_exhausted_email()
             except Exception as e:
@@ -426,6 +431,59 @@ def decode_base64_docx(base64_str: str) -> bytes:
         raise ValueError("Invalid DOCX file")
 
     return docx_bytes
+
+async def tailor_resume_from_job(email: str, job_id: str) -> Dict[str, Any]:
+    # 1. Get user's active resume
+    resume_doc = await user_resumes_collection.find_one({"email": email, "is_active": True})
+    if not resume_doc:
+        raise HTTPException(
+            status_code=400,
+            detail="No active resume found. Please upload and activate a resume from your profile first."
+        )
+
+    # 2. Get the job
+    try:
+        oid = ObjectId(job_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid job ID.")
+
+    job_doc = await jobs_collection.find_one({"_id": oid})
+    if not job_doc:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    jd_text = (job_doc.get("description") or "").strip()
+    if not jd_text:
+        raise HTTPException(status_code=400, detail="This job has no description to tailor against.")
+
+    # 3. Download resume file from S3
+    s3_key = resume_doc["s3_key"]
+    file_type = resume_doc.get("file_type", "pdf")
+
+    try:
+        s3_client = boto3.client(
+            "s3",
+            region_name=os.getenv("AWS_REGION"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        )
+        s3_response = s3_client.get_object(
+            Bucket=os.getenv("S3_BUCKET_NAME", "io-resumes"),
+            Key=s3_key
+        )
+        file_bytes = s3_response["Body"].read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not fetch your resume from storage: {str(e)}")
+
+    # 4. Encode as base64 with MIME prefix (required by extract_text_from_resume)
+    b64 = base64.b64encode(file_bytes).decode("utf-8")
+    if file_type == "pdf":
+        resume_b64 = f"data:application/pdf;base64,{b64}"
+    else:
+        resume_b64 = f"data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}"
+
+    # 5. Tailor
+    return await tailor_resume_groq(resume_b64, jd_text)
+
 
 async def check_ats_score(resume_text: str, jd: str):
     print('Begin resume_service.py -> check_ats_score()')

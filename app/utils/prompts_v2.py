@@ -40,25 +40,22 @@ JOB_DESCRIPTION: {JOB_DESCRIPTION}
     "skill_development": [<skills to learn>]
   }},
   "tailored_resume": {{
-    "header": {
-      "name": "", 
-      "title": "", 
-      "phone": "", 
-      "email": "", 
-      "linkedin": "", 
-      "github": "", 
-      "portfolio": "", 
+    "header": {{
+      "name": "",
+      "title": "",
+      "phone": "",
+      "email": "",
+      "linkedin": "",
+      "github": "",
+      "portfolio": "",
       "location": "",
-      "other": [
-        {"label": "<link type or empty if unknown>", "url": ""}
-      ]
-    },          
+      "other": [{{"label": "<link type or empty if unknown>", "url": ""}}]
+    }},
     "professional_summary": "<2-3 sentences with JD keywords>",
     "technical_skills": {{"<category>": [<skills>]}},
     "professional_experience": [{{
       "company": "", "title": "", "location": "", "duration": "",
-      "projects": [{{"name": "", "description": "<1 sentence>", "achievements": [<bullets with metrics>]}}],
-      "achievements": [<use ONLY if no projects listed>]
+      "projects": [{{"name": "", "description": "<1 sentence>", "achievements": [<bullets — 15-25 words each>]}}]
     }}],
     "internships": [{{"company": "", "title": "", "location": "", "duration": "", "achievements": []}}],
     "projects": [{{"name": "", "technologies": "", "duration": "", "description": [], "link": ""}}],
@@ -72,7 +69,15 @@ JOB_DESCRIPTION: {JOB_DESCRIPTION}
     "critical_keywords_added": [],
     "keyword_frequency": {{"<keyword>": <count>}}
   }},
-  "next_steps": []
+  "next_steps": [],
+  "_validation": {{
+    "input_bullet_count": <count all bullets in original resume>,
+    "output_bullet_count": <count all bullets in tailored output>,
+    "input_project_count": <count>,
+    "output_project_count": <count>,
+    "bullets_preserved": <true if output_bullet_count >= input_bullet_count>,
+    "integrity_issues": [<list any dropped bullets, fabricated content, or rule violations. Empty array if none>]
+  }}
 }}
 
 **SECTION RULES:**
@@ -88,10 +93,18 @@ JOB_DESCRIPTION: {JOB_DESCRIPTION}
    - Don't merge into project bullets
 
 3. **Work vs Internships:**
-   - Full-time/contract → professional_experience
+   - Full-time/contract/freelance → professional_experience
    - Intern/co-op/trainee → internships
+   - If title is ambiguous (e.g. "Junior Developer"), check duration and context — short-term (<6 months) at the start of career → internships
 
-4. **Skills Categories:**
+4. **Achievements Placement (CRITICAL — read carefully):**
+   - If a role has projects[] → put ALL bullets inside projects[].achievements ONLY
+   - NEVER populate the role-level achievements[] array when projects[] exist
+   - Role-level achievements[] is ONLY for roles that have zero projects
+   - ✅ CORRECT: role has 2 projects → both projects have achievements[], role achievements[] is absent
+   - ❌ WRONG: role has 2 projects → some bullets split between projects[].achievements and role achievements[]
+
+5. **Skills Categories:**
    - Preserve all categories (Languages, Frontend, Backend, Databases, Tools, Core Concepts)
    - Add JD-relevant skills
 
@@ -130,10 +143,16 @@ Output:
 - Quantify achievements (%, numbers, metrics)
 - Use action verbs: Developed, Implemented, Optimized, Engineered, Built
 - Maintain truthfulness - reframe only, never fabricate
+- Keep each bullet between 15-25 words (ATS-optimal length, fits on 1-2 page resume)
 - Return valid JSON only
 
-**SCORING:**
-90-100: Excellent | 75-89: Good | 60-74: Moderate | <60: Poor match
+**SCORING (follow this formula exactly):**
+Step 1: Count total unique keywords in the JD (technical terms, tools, methodologies, soft skills)
+Step 2: Count how many of those keywords appear in the ORIGINAL resume → before_tailoring = round((matched / total) * 100)
+Step 3: Count how many appear in the TAILORED resume output → after_tailoring = round((matched / total) * 100)
+Step 4: overall_score = after_tailoring
+Interpretation: 90-100: Excellent | 75-89: Good | 60-74: Moderate | <60: Poor match
+Expected improvement: 10-25 points. If improvement > 35 points, review for false claims.
 """
 
 GET_ATS_SCORE_PROMPT = '''You are an expert ATS (Applicant Tracking System) analyzer and career consultant. Analyze the following resume against the job description and provide a detailed assessment.

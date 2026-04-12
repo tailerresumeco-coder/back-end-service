@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
+import os
 import sys
 
 if sys.platform.startswith("win"):
@@ -13,8 +14,11 @@ from pydantic import BaseModel
 from app.routers.resume_router import router as resume_router
 from app.routers.token_router import router as token_router
 from app.routers.mail_router import router as mail_router
+from app.routers.job_router import router as job_router
 from app.routers.auth_router import router as auth_router
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 app = FastAPI(
     title="My FastAPI Service",
@@ -36,7 +40,51 @@ app.add_middleware(
     expose_headers=["Content-Disposition"]
 )
 
-background_scheduler = BackgroundScheduler()
+from app.db import setup_job_indexes, setup_user_resume_indexes
+from app.services.job_aggregation_service import run_aggregation
+
+scheduler = AsyncIOScheduler()
+
+# ─────────────────────────────────────────────
+
+@app.on_event("startup")
+async def startup():
+    # Set up MongoDB indexes for jobs
+    await setup_job_indexes()
+    await setup_user_resume_indexes()
+
+    # Incremental run — every N hours (default 6)
+    interval_hours = int(os.getenv("JOB_FETCH_INTERVAL_HOURS", "6"))
+    scheduler.add_job(
+        run_aggregation,
+        trigger=IntervalTrigger(hours=interval_hours),
+        kwargs={"full_refresh": False},
+        id="job_aggregation_incremental",
+        name="Incremental job fetch",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
+
+    # Full refresh — every Sunday at 1:00 AM
+    scheduler.add_job(
+        run_aggregation,
+        trigger=CronTrigger(day_of_week="sun", hour=1, minute=0),
+        kwargs={"full_refresh": True},
+        id="job_aggregation_full_refresh",
+        name="Weekly full job refresh",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
+
+    scheduler.start()
+
+
+@app.on_event("shutdown")
+def shutdown():
+    scheduler.shutdown(wait=False)
+
 
 # ─────────────────────────────────────────────
 
@@ -64,4 +112,5 @@ def create_item(item: Item):
 app.include_router(resume_router)
 app.include_router(token_router)
 app.include_router(mail_router)
+app.include_router(job_router)
 app.include_router(auth_router)
