@@ -9,3 +9,5 @@ class LoginModel(BaseModel):
     email: str
     password: str
     
+class GoogleSignupModel(BaseModel):
+    credential: str

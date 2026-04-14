@@ -34,7 +34,7 @@ app.add_middleware(
         "https://tailerresume.com",
         "https://www.tailerresume.com"
     ],
-    allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
+    allow_credentials=True,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"]
