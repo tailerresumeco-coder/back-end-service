@@ -148,6 +148,54 @@ async def tailer_resume(resume_content, jd_text):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ---------------------------------------------------------------------------
+# Groq model registry — ordered by quality preference (best first).
+# tpm = tokens-per-minute on-demand limit.
+# ---------------------------------------------------------------------------
+_GROQ_MODEL_REGISTRY = [
+    {"id": "llama-3.3-70b-versatile", "tpm": 12_000},
+    {"id": "llama-3.1-8b-instant",    "tpm": 200_000},
+]
+_PROMPT_OVERHEAD_TOKENS = 1_600   # approximate token size of RESUME_TAILOR_PROMPT0
+_DESIRED_OUTPUT_TOKENS  = 8_000   # ideal output budget
+_MIN_OUTPUT_TOKENS      = 2_000   # minimum we'll accept before raising
+
+
+def _estimate_tokens(text: str) -> int:
+    """Rough estimate: 4 chars ≈ 1 token (sufficient for routing decisions)."""
+    return max(1, len(text) // 4)
+
+
+def _select_model(input_token_estimate: int) -> tuple:
+    """
+    Pick the best Groq model whose TPM budget fits the full request.
+    Returns (model_id, max_output_tokens).
+
+    - Tries models best-first (quality order).
+    - Shrinks max_output_tokens when the desired budget doesn't fit but a
+      smaller output still would.
+    - Raises ValueError only when no model can provide _MIN_OUTPUT_TOKENS.
+    """
+    SAFETY_BUFFER = 200
+    for entry in _GROQ_MODEL_REGISTRY:
+        headroom = entry["tpm"] - input_token_estimate - SAFETY_BUFFER
+        if headroom >= _DESIRED_OUTPUT_TOKENS:
+            return entry["id"], _DESIRED_OUTPUT_TOKENS
+        if headroom >= _MIN_OUTPUT_TOKENS:
+            return entry["id"], headroom
+
+    # Absolute last resort — highest-TPM model with whatever fits
+    best = max(_GROQ_MODEL_REGISTRY, key=lambda m: m["tpm"])
+    headroom = best["tpm"] - input_token_estimate - SAFETY_BUFFER
+    if headroom < _MIN_OUTPUT_TOKENS:
+        raise ValueError(
+            f"Resume + JD combination is too large for all available models "
+            f"(estimated {input_token_estimate} input tokens). "
+            "Please use a shorter resume (max 2 pages) or a shorter job description."
+        )
+    return best["id"], headroom
+
+
 async def get_groq_client() -> Groq:
     groq_api_key = await get_active_apikey()
     if not groq_api_key:
@@ -281,19 +329,21 @@ async def tailor_resume_groq(
     jd_text: str
 ) -> Dict[str, Any]:
     
-    resume_content =  await extract_text_from_resume(resume_content)
+    resume_content = await extract_text_from_resume(resume_content)
 
-   
     prompt = RESUME_TAILOR_PROMPT0.replace("{RESUME_TEXT}", resume_content)
     prompt = prompt.replace("{JOB_DESCRIPTION}", jd_text)
-    
+
     # Initialize Groq client
     client = await get_groq_client()
 
-    # Get model from environment
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
     try:
+        # Dynamic model selection: pick best model whose TPM budget fits this request.
+        # No input is truncated — larger inputs automatically route to a higher-capacity model.
+        input_token_estimate = _PROMPT_OVERHEAD_TOKENS + _estimate_tokens(resume_content) + _estimate_tokens(jd_text)
+        model, max_tokens = _select_model(input_token_estimate)
+        print(f"[tailor_resume_groq] input_estimate={input_token_estimate} tokens → model={model}, max_tokens={max_tokens}")
+
         # Call Groq API
         completion = client.chat.completions.create(
             model=model,
@@ -304,7 +354,7 @@ async def tailor_resume_groq(
                 }
             ],
             temperature=0,  # Deterministic for structured data
-            max_tokens=16000
+            max_tokens=max_tokens
         )
         
         # Extract response
@@ -348,7 +398,7 @@ async def tailor_resume_groq(
         return {
             "status": "success",
             "data": parsed_response,
-            "model": "llama-3.1-70b-versatile",
+            "model": model,
             "tokens_used": {
                 "input": input_tokens,
                 "output": output_tokens,
