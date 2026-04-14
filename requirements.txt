@@ -16,3 +16,4 @@ pdfplumber
 python-multipart
 python-jose
 google-auth
+requests
