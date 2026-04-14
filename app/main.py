@@ -34,7 +34,7 @@ app.add_middleware(
         "https://tailerresume.com",
         "https://www.tailerresume.com"
     ],
-    allow_credentials=False,   # ✅ REQUIRED (no cookies/auth used)
+    allow_credentials=True,   # ✅ REQUIRED (no cookies/auth used)
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"]
@@ -47,43 +47,43 @@ scheduler = AsyncIOScheduler()
 
 # ─────────────────────────────────────────────
 
-@app.on_event("startup")
-async def startup():
-    # Set up MongoDB indexes for jobs
-    await setup_job_indexes()
-    await setup_user_resume_indexes()
+# @app.on_event("startup")
+# async def startup():
+#     # Set up MongoDB indexes for jobs
+#     await setup_job_indexes()
+#     await setup_user_resume_indexes()
 
-    # Incremental run — every N hours (default 6)
-    interval_hours = int(os.getenv("JOB_FETCH_INTERVAL_HOURS", "6"))
-    scheduler.add_job(
-        run_aggregation,
-        trigger=IntervalTrigger(hours=interval_hours),
-        kwargs={"full_refresh": False},
-        id="job_aggregation_incremental",
-        name="Incremental job fetch",
-        replace_existing=True,
-        max_instances=1,
-        misfire_grace_time=3600,
-    )
+#     # Incremental run — every N hours (default 6)
+#     interval_hours = int(os.getenv("JOB_FETCH_INTERVAL_HOURS", "6"))
+#     scheduler.add_job(
+#         run_aggregation,
+#         trigger=IntervalTrigger(hours=interval_hours),
+#         kwargs={"full_refresh": False},
+#         id="job_aggregation_incremental",
+#         name="Incremental job fetch",
+#         replace_existing=True,
+#         max_instances=1,
+#         misfire_grace_time=3600,
+#     )
 
-    # Full refresh — every Sunday at 1:00 AM
-    scheduler.add_job(
-        run_aggregation,
-        trigger=CronTrigger(day_of_week="sun", hour=1, minute=0),
-        kwargs={"full_refresh": True},
-        id="job_aggregation_full_refresh",
-        name="Weekly full job refresh",
-        replace_existing=True,
-        max_instances=1,
-        misfire_grace_time=3600,
-    )
+#     # Full refresh — every Sunday at 1:00 AM
+#     scheduler.add_job(
+#         run_aggregation,
+#         trigger=CronTrigger(day_of_week="sun", hour=1, minute=0),
+#         kwargs={"full_refresh": True},
+#         id="job_aggregation_full_refresh",
+#         name="Weekly full job refresh",
+#         replace_existing=True,
+#         max_instances=1,
+#         misfire_grace_time=3600,
+#     )
 
-    scheduler.start()
+#     scheduler.start()
 
 
-@app.on_event("shutdown")
-def shutdown():
-    scheduler.shutdown(wait=False)
+# @app.on_event("shutdown")
+# def shutdown():
+#     scheduler.shutdown(wait=False)
 
 
 # ─────────────────────────────────────────────
