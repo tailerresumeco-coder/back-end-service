@@ -2,7 +2,7 @@ from typing import Any, Dict
 from app.db import resumes_collection, groq_tokens_collection, feedback_collection, user_resumes_collection, jobs_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
-from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT
+from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT, FORMAT_INPUT_RESUME_TO_JSON
 import json
 import re
 import os
@@ -13,7 +13,7 @@ from app.services.mail_service import send_email_test, send_token_nearly_exhaust
 from app.services.token_service import get_active_apikey, update_token_obj, add_user_or_handle_existing
 import io
 import boto3
-from app.services.s3_service import upload_file_to_s3
+from app.services.s3_service import upload_file_to_s3, get_json_resume_from_s3, upload_json_resume_to_s3
 import base64
 from bson import ObjectId
 from io import BytesIO
@@ -222,7 +222,6 @@ def extract_json(text: str) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in response: {str(e)}")
     
-
 async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     try:
         final_text = ""
@@ -232,7 +231,6 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
                 page_text = page.extract_text() or ""
                 words = page.extract_words(use_text_flow=True)
 
-                # Replace visible words with links
                 if page.hyperlinks:
                     for link in page.hyperlinks:
                         uri = link.get("uri")
@@ -241,26 +239,39 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
 
                         uri = unquote(uri)
 
-
-                        for word in words:
-                            # check overlap between word & link rectangle
+                        # collect all words inside hyperlink box
+                        linked_words = [
+                            word for word in words
                             if (
                                 word["x0"] >= link["x0"]
                                 and word["x1"] <= link["x1"]
                                 and word["top"] >= link["top"]
                                 and word["bottom"] <= link["bottom"]
-                            ):
-                                page_text = page_text.replace(
-                                    word["text"],
-                                    uri
-                                )
+                            )
+                        ]
+
+                        if not linked_words:
+                            continue
+
+                        # sort words left → right
+                        linked_words = sorted(linked_words, key=lambda w: w["x0"])
+
+                        original_text = " ".join(w["text"] for w in linked_words)
+
+                        # replace ONLY ONCE to avoid duplication
+                        if original_text in page_text:
+                            page_text = page_text.replace(
+                                original_text,
+                                f"{original_text} ({uri})",
+                                1
+                            )
 
                 final_text += page_text + "\n"
+
         return final_text.strip()
 
     except Exception as e:
         raise ValueError(f"PDF extract error: {str(e)}")
-    
     
 async def extract_text_from_docx(docx_bytes: bytes) -> str:
     try:
@@ -324,12 +335,50 @@ async def extract_text_from_resume(resume_content: str):
         resume_content = await (extract_text_from_docx(decode_base64_docx(resume_content)))
     return clean_cell(resume_content)
 
+async def format_resume_content_to_json(resume_content):
+    prompt = FORMAT_INPUT_RESUME_TO_JSON
+    client = await get_groq_client()
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",  # or your selected model
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt + "\n\n" + resume_content
+                }
+            ],
+            temperature=0
+        )
+        
+        response_text = completion.choices[0].message.content
+        
+        return {
+            "status": "success",
+            "raw_response": response_text
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
 async def tailor_resume_groq(
     resume_content: str,
-    jd_text: str
+    jd_text: str,
+    resume_id: str,
+    email: str
 ) -> Dict[str, Any]:
     
     resume_content = await extract_text_from_resume(resume_content)
+    
+    resume_json = await get_json_resume_from_s3('resumes-lists', resume_id)
+    if resume_json.get('status') == 'error':
+        resume_json = await format_resume_content_to_json(resume_content)
+        is_uploaded  = await upload_json_resume_to_s3(resume_json, 'resumes-lists', email)
+        if not is_uploaded:
+            return {"status": "error", "message": "Error uploading resume to S3"}
 
     prompt = RESUME_TAILOR_PROMPT0.replace("{RESUME_TEXT}", resume_content)
     prompt = prompt.replace("{JOB_DESCRIPTION}", jd_text)

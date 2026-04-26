@@ -4,7 +4,8 @@ from typing import Optional
 class TailerResumeRequestModel(BaseModel):
     resume: str
     jd: str
-
+    resume_id: str
+    email: str
 
 class TailerResumeRequestModelV2(BaseModel):
     resume: str

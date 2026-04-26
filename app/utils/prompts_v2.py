@@ -709,3 +709,86 @@ For low-content resumes: Expand bullets significantly with reasonable details ab
 Check the experice section carefuly and if you finnd any role with "Intern" in the title, make sure it is classified as an internship and does not appear in the experience section.
 """
 
+FORMAT_INPUT_RESUME_TO_JSON = '''
+  You are a resume parsing assistant. Extract all content from the resume text below and return it as a single valid JSON object matching the schema exactly.
+
+  RULES (CRITICAL — follow without exception):
+  - Return raw JSON ONLY. No markdown, no backticks, no explanation before or after.
+  - Every field in the schema must be present. Use null for missing strings, [] for missing arrays.
+  - Do NOT add any fields not in the schema.
+  - Do NOT drop, merge, or skip any bullet points, projects, or sections.
+  - Preserve original wording — do not paraphrase or summarize.
+
+  FIELD RULES:
+  - basic.links → extract all profile URLs (LinkedIn, GitHub, portfolio, etc.) with their label names.
+  - education.scoreType → must be exactly "GPA" or "PERCENTAGE" (uppercase).
+  - education.score → numeric value only (e.g. 8.2 or 85.4), no units.
+  - education.duration → format as "MMM YYYY - MMM YYYY" (e.g. "Nov 2020 - Apr 2025"). Use "Present" if ongoing.
+  - experience.experienceType → must be one of: "INTERNSHIP", "FULL_TIME", "PART_TIME", "FREELANCE", "CONTRACT".
+  - experience.projects → each project must have description as an array of bullet point strings.
+  - experience → if a role has no named projects, wrap all bullets in a single project with projectName: null.
+  - personalProjects → only standalone/side projects not under a company.
+  - personalProjects.links.type → must be one of: "live", "github", "demo", "other".
+  - skills → group into meaningful categories (e.g. "Languages", "Frontend", "Backend", "Databases", "Tools"). Do not dump all skills into one group.
+  - If a field cannot be determined from the resume, use null (string fields) or [] (array fields).
+
+  OUTPUT SCHEMA:
+  {
+    "basic": {
+      "name": "",
+      "email": "",
+      "phone": "",
+      "address": "",
+      "links": [
+        { "name": "", "link": "" }
+      ]
+    },
+    "summary": "",
+    "education": [
+      {
+        "institute": "",
+        "course": "",
+        "duration": "MMM YYYY - MMM YYYY",
+        "score": 0.0,
+        "scoreType": "GPA | PERCENTAGE",
+        "description": ""
+      }
+    ],
+    "experience": [
+      {
+        "companyName": "",
+        "experienceType": "INTERNSHIP | FULL_TIME | PART_TIME | FREELANCE | CONTRACT",
+        "role": "",
+        "duration": "MMM YYYY - MMM YYYY",
+        "projects": [
+          {
+            "projectName": "",
+            "description": ["<bullet point>", "<bullet point>"]
+          }
+        ]
+      }
+    ],
+    "personalProjects": [
+      {
+        "projectName": "",
+        "role": "",
+        "duration": "MMM YYYY - MMM YYYY | null",
+        "description": ["<bullet point>", "<bullet point>"],
+        "technologiesUsed": [""],
+        "links": [
+          { "name": "", "link": "", "type": "live | github | demo | other" }
+        ]
+      }
+    ],
+    "skills": [
+      { "category": "", "items": [""] }
+    ]
+  }
+
+  ---
+  RESUME TEXT:
+  {paste_your_extracted_resume_text_here}
+  ---
+
+  Return only the JSON. Nothing else.
+'''
