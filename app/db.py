@@ -36,6 +36,8 @@ job_fetch_logs_collection = db["job_fetch_logs"]
 # User-owned resumes
 user_resumes_collection = db["user_resumes"]
 
+resumes_lists_collection = db["resumes_lists"]
+
 
 async def setup_job_indexes():
     """Create indexes for jobs collection. Safe to call on every startup (idempotent)."""

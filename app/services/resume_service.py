@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from app.db import resumes_collection, groq_tokens_collection, feedback_collection, user_resumes_collection, jobs_collection
+from app.db import resumes_collection, groq_tokens_collection, feedback_collection, user_resumes_collection, jobs_collection, resumes_lists_collection
 from openai import OpenAI
 from app.utils.prompts import PROMPT_9
 from app.utils.prompts_v2 import RESUME_TAILOR_PROMPT0, GET_ATS_SCORE_PROMPT, FORMAT_INPUT_RESUME_TO_JSON
@@ -20,6 +20,7 @@ from io import BytesIO
 import pdfplumber
 import re
 from urllib.parse import unquote
+import app.services.user_resume_service as user_resume_service
 
 load_dotenv()
 from fastapi.responses import StreamingResponse
@@ -368,84 +369,118 @@ async def tailor_resume_groq(
     resume_content: str,
     jd_text: str,
     resume_id: str,
-    email: str
+    email: str,
+    resume_name: str
 ) -> Dict[str, Any]:
-    
-    resume_content = await extract_text_from_resume(resume_content)
-    
-    resume_json = await get_json_resume_from_s3('resumes-lists', resume_id)
-    if resume_json.get('status') == 'error':
-        resume_json = await format_resume_content_to_json(resume_content)
-        is_uploaded  = await upload_json_resume_to_s3(resume_json, 'resumes-lists', email)
-        if not is_uploaded:
-            return {"status": "error", "message": "Error uploading resume to S3"}
-
-    prompt = RESUME_TAILOR_PROMPT0.replace("{RESUME_TEXT}", resume_content)
-    prompt = prompt.replace("{JOB_DESCRIPTION}", jd_text)
-
-    # Initialize Groq client
-    client = await get_groq_client()
 
     try:
-        # Dynamic model selection: pick best model whose TPM budget fits this request.
-        # No input is truncated — larger inputs automatically route to a higher-capacity model.
-        input_token_estimate = _PROMPT_OVERHEAD_TOKENS + _estimate_tokens(resume_content) + _estimate_tokens(jd_text)
-        model, max_tokens = _select_model(input_token_estimate)
-        print(f"[tailor_resume_groq] input_estimate={input_token_estimate} tokens → model={model}, max_tokens={max_tokens}")
+        # Step 1: Extract text
+        resume_content = await extract_text_from_resume(resume_content)
 
-        # Call Groq API
+        resume_json = None
+        uploaded_resume_id = None
+
+        # Step 2: Try fetching existing JSON from S3
+        if resume_id:
+            resume_json = await get_json_resume_from_s3('resumes-lists', resume_id)
+
+        # Step 3: If no resume_id OR fetch failed → generate new JSON
+        if not resume_id or not resume_json or resume_json.get("status") == "error":
+            resume_json = await format_resume_content_to_json(resume_content)
+
+            # If no resume_id → create one
+            if not resume_id:
+                uploaded_doc = await user_resume_service.add_resumes_lists(email, resume_name)
+                uploaded_resume_id = str(uploaded_doc.get("_id"))
+                resume_id = uploaded_resume_id
+
+            # Upload JSON to S3 (serialize safely)
+            is_uploaded_to_s3 = await upload_json_resume_to_s3(
+                resume_id,
+                resume_json,
+                'resumes-lists',
+                email
+            )
+
+            if not is_uploaded_to_s3:
+                return {
+                    "status": "error",
+                    "message": "Error uploading resume to S3"
+                }
+
+        # Step 4: Prepare prompt
+        prompt = RESUME_TAILOR_PROMPT0.replace("{RESUME_TEXT}", resume_content)
+        prompt = prompt.replace("{JOB_DESCRIPTION}", jd_text)
+
+        # Step 5: Groq client
+        client = await get_groq_client()
+
+        input_token_estimate = (
+            _PROMPT_OVERHEAD_TOKENS +
+            _estimate_tokens(resume_content) +
+            _estimate_tokens(jd_text)
+        )
+
+        model, max_tokens = _select_model(input_token_estimate)
+
+        print(f"[tailor_resume_groq] input_estimate={input_token_estimate} → model={model}")
+
+        # Step 6: API call
         completion = client.chat.completions.create(
             model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0,  # Deterministic for structured data
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
             max_tokens=max_tokens
         )
-        
-        # Extract response
+
         response_text = completion.choices[0].message.content
-        
-        # Parse JSON
+
+        # Step 7: Parse JSON
         try:
             parsed_response = extract_json(response_text)
         except ValueError as json_error:
             return {
                 "status": "error",
                 "code": "JSON_PARSE_ERROR",
-                "message": "Could not parse AI response as JSON",
+                "message": "Could not parse AI response",
                 "error": str(json_error),
-                "raw_response": response_text[:500]  # First 500 chars for debugging
+                "raw_response": response_text[:500]
             }
-            
-        # Success
-        input_tokens = getattr(completion.usage, 'input_tokens', getattr(completion.usage, 'prompt_tokens', 0))
-        output_tokens = getattr(completion.usage, 'output_tokens', getattr(completion.usage, 'completion_tokens', 0))
-        
+
+        # Step 8: Token tracking
+        input_tokens = getattr(completion.usage, 'input_tokens',
+                        getattr(completion.usage, 'prompt_tokens', 0))
+        output_tokens = getattr(completion.usage, 'output_tokens',
+                        getattr(completion.usage, 'completion_tokens', 0))
+
         active_api_key = await get_active_apikey()
-        token_record = await groq_tokens_collection.find_one({"apikey": active_api_key}) #no need - directly update active token
-        groq_collection = await update_token_obj(active_api_key, tokens=token_record["tokens"] + input_tokens + output_tokens, requests=token_record["requests"] + 1)
-        
-        # await add_user_or_handle_existing(
-        #     email=parsed_response["basic"]["email"],
-        #     name=parsed_response["basic"]["name"],
-        #     phone=parsed_response["basic"]["phone"],
-        # )
-        
+
+        token_record = await groq_tokens_collection.find_one({"apikey": active_api_key})
+
+        if token_record:
+            await update_token_obj(
+                active_api_key,
+                tokens=token_record["tokens"] + input_tokens + output_tokens,
+                requests=token_record["requests"] + 1
+            )
+
+        # Step 9: Alert if nearing limit
         DAILY_TOKEN_LIMIT = 100_000
-        ALERT_THRESHOLD = 0.80  # Send alert at 80% usage
-        total_tokens_used = token_record["tokens"] + input_tokens + output_tokens
+        ALERT_THRESHOLD = 0.80
+
+        total_tokens_used = (token_record["tokens"] if token_record else 0) + input_tokens + output_tokens
+
         if total_tokens_used >= DAILY_TOKEN_LIMIT * ALERT_THRESHOLD:
             try:
                 await send_token_nearly_exhausted_email()
             except Exception as e:
-                print("Error sending token nearly exhausted email:", str(e))
-        # await tailored_notify_email(parsed_response["basic"]["name"], parsed_response["basic"]["email"])
+                print("Alert email failed:", str(e))
+
+        # Step 10: Final response
         return {
             "status": "success",
+            "resume_id": resume_id,
+            "resume_name": resume_name,
             "data": parsed_response,
             "model": model,
             "tokens_used": {
@@ -454,45 +489,41 @@ async def tailor_resume_groq(
                 "total": input_tokens + output_tokens
             }
         }
-    
+
     except Exception as e:
         error_msg = str(e).lower()
-        
-        # Token/context limit error
+
         if "token" in error_msg or "context" in error_msg:
             return {
                 "status": "error",
                 "code": "TOKEN_LIMIT_EXCEEDED",
-                "message": "Resume + JD combination too long. Please use a shorter resume (max 2 pages) or shorter JD (max 1 page).",
+                "message": "Resume or JD too long",
                 "error": str(e)
             }
-        
-        # Rate limit error
+
         if "rate" in error_msg or "quota" in error_msg:
             return {
                 "status": "error",
                 "code": "RATE_LIMIT",
-                "message": "Too many requests. Please try again in a moment.",
+                "message": "Too many requests",
                 "error": str(e)
             }
-        
-        # API key error
+
         if "api" in error_msg or "auth" in error_msg or "key" in error_msg:
             return {
                 "status": "error",
                 "code": "API_KEY_ERROR",
-                "message": "Server configuration error. Please contact support.",
+                "message": "API key issue",
                 "error": str(e)
             }
-        
-        # Generic error
+
         return {
             "status": "error",
             "code": "GROQ_API_ERROR",
             "message": "Error processing resume with AI service",
             "error": str(e)
         }
-        
+         
 async def store_resumes(input_resume, output_resume, email):
     try:
         print("Begin resume_service.py -> store_resumes()")

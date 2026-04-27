@@ -13,42 +13,54 @@ async def create_user(user):
     return await auth_collection.insert_one(user)
 
 async def signup(email, password, confirmPassword):
-    if password != confirmPassword:
-        return {"error": "Passwords do not match"}
+    try:
+        if password != confirmPassword:
+            return {"error": "Passwords do not match"}
 
-    is_email_exists = await auth_collection.find_one({"email": email})
+        is_email_exists = await auth_collection.find_one({"email": email})
 
-    if is_email_exists:
-        return {"error": "User already exists"}
+        if is_email_exists:
+            return {"error": "User already exists"}
 
-    user_signup_obj = {
-        "email": email,
-        "password": password
-    }
+        user_signup_obj = {
+            "email": email,
+            "password": password
+        }
 
-    await auth_collection.insert_one(user_signup_obj)
+        await auth_collection.insert_one(user_signup_obj)
 
-    return {"message": "User created successfully"}
+        return {"message": "User created successfully"}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 async def login(email, password):
-    user = await auth_collection.find_one({"email": email})
+    try:
+        user = await get_user_by_email(email)
+        if not user:
+            return {"error": "User not found"}
 
-    if not user:
-        return {"error": "User not found"}
+        if user.provider == "google":
+            return {
+                "error": "Please login with Google"
+            }
 
-    if user["password"] != password:
-        return {"error": "Invalid credentials"}
+        if user["password"] != password:
+            return {"error": "Invalid credentials"}
 
-    # 🔥 create JWT token
-    token = create_access_token({"sub": user["email"]})
+        # 🔥 create JWT token
+        token = create_access_token({"sub": user["email"]})
 
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "email": user["email"]
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "email": user["email"]
+            }
         }
-    }
+
+    except Exception as e:
+        return {"error": str(e)}
 
 async def google_signup(credential: str):
     print('Begin auth_service.py -> google_signup()')

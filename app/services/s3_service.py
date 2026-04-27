@@ -49,7 +49,7 @@ async def get_json_resume_from_s3(bucket_name: str, object_name: str):
             "message": str(e)
         }
 
-async def upload_json_resume_to_s3(json_resume: dict, bucket_name: str, object_name: str):
+async def upload_json_resume_to_s3(resume_id: str, json_resume: dict, bucket_name: str, object_name: str):
     s3_client = boto3.client(
         "s3",
         region_name=AWS_REGION,
@@ -59,7 +59,7 @@ async def upload_json_resume_to_s3(json_resume: dict, bucket_name: str, object_n
 
     response = s3_client.put_object(
         Bucket=bucket_name,
-        Key = f"{object_name}/{uuid.uuid4()}",
+        Key = resume_id,
         Body=json.dumps(json_resume).encode("utf-8"),
         ContentType="application/json"
     )

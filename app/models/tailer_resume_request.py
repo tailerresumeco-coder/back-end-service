@@ -6,6 +6,7 @@ class TailerResumeRequestModel(BaseModel):
     jd: str
     resume_id: str
     email: str
+    resume_name: str
 
 class TailerResumeRequestModelV2(BaseModel):
     resume: str

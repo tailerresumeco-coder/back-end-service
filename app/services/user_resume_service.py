@@ -5,8 +5,9 @@ import boto3
 from bson import ObjectId
 from datetime import datetime, timezone
 from fastapi import UploadFile, HTTPException
+from pymongo import ReturnDocument
 
-from app.db import user_resumes_collection
+from app.db import user_resumes_collection, resumes_lists_collection
 
 S3_BUCKET = os.getenv("S3_BUCKET_NAME", "io-resumes")
 ALLOWED_TYPES = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
@@ -135,3 +136,41 @@ async def delete_resume(email: str, resume_id: str) -> dict:
 
     await user_resumes_collection.delete_one({"_id": oid})
     return {"deleted": True, "id": resume_id}
+
+async def add_resumes_lists(email: str, resume_name: str) -> dict:
+    data = {
+        "email": email,
+        "resume_name": resume_name,
+        "created_on": datetime.now(timezone.utc),
+        "updated_on": datetime.now(timezone.utc),
+        "active": True
+    }
+
+    result = await resumes_lists_collection.insert_one(data)
+    data["_id"] = str(result.inserted_id)  # optional: attach id
+
+    return data
+
+async def get_resume_lists(email: str) -> dict:
+    try:
+        cursor = resumes_lists_collection.find({
+            "email": email,
+            "active": True
+        }).sort("created_on", -1)
+
+        all_resumes = await cursor.to_list(length=None)
+
+        # 🔥 FIX HERE
+        for r in all_resumes:
+            r["_id"] = str(r["_id"])
+
+        return {
+            "status": "success",
+            "resumes": all_resumes
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting resumes: {str(e)}"
+        )

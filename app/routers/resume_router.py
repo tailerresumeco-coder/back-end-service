@@ -13,6 +13,7 @@ from app.services.user_resume_service import (
     get_active_resume,
     activate_resume,
     delete_resume,
+    get_resume_lists
 )
 
 router = APIRouter(
@@ -34,7 +35,7 @@ async def upload_resume(payload: Dict[str, Any]):
 @router.post("/tailer-resume-legacy")
 async def tailer_resume_legacy(payload: TailerResumeRequestModel, user=Depends(get_current_user) ):
     print('Begin resume_router.py -> tailer_resume_legacy()')
-    response = await tailor_resume_groq(payload.resume, payload.jd, payload.resume_id, payload.email)
+    response = await tailor_resume_groq(payload.resume, payload.jd, payload.resume_id, payload.email, payload.resume_name)
     print('End resume_router.py -> tailer_resume_legacy()')
     return response
 
@@ -121,3 +122,7 @@ async def activate_my_resume(resume_id: str, user: dict = Depends(get_current_us
 async def delete_my_resume(resume_id: str, user: dict = Depends(get_current_user)):
     email = user["sub"]
     return await delete_resume(email, resume_id)
+
+@router.get("/my-resumes-lists/{email}")
+async def get_my_resume_lists(email: str, user: dict = Depends(get_current_user)):
+    return await get_resume_lists(email)
